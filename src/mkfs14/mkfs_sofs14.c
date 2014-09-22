@@ -317,7 +317,32 @@ static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itota
                              unsigned char *name)
 {
 
-  /* insert your code here */
+  /* insert your code here FUNCAO 1*/
+    p_sb->magic = 0xFFFF;		// inicialmente é 0xFFFF, no futuro será MAGIC_NUMBER
+  p_sb->version = VERSION_NUMBER;
+  
+  // funcao que copia o nome (array de caracteres)
+  unsigned int stringposition;
+  for(stringposition = 0; stringposition < strlen((char *)name) && stringposition < PARTITION_NAME_SIZE /* +1 ? */; stringposition++){ 
+      p_sb->name[stringposition] = name[stringposition];
+  
+  p_sb->nTotal = ntotal;				// dado pelo argumento da funcao
+  p_sb->mStat = PRU;					// o filesystem é novo, está bem desmontado
+  p_sb->iTableStart = 1;				// o bloco 0 é o superbloco
+  p_sb->iTableSize = (itotal / IPB) + (itotal % IPB);	// de onde vem isto?
+  p_sb->iTotal = itotal:				// o numero total de nos-i
+  p_sb->iFree = itotal - 1;				// o primeiro inode está ocupado com a raiz "/"
+  p_sb->iHead = 0;
+  p_sb->iTail = itotal -1 ;
+  p_sb->dZoneStart = 1+ itotal + 1;
+  p_sb->dZoneTotal = nclusttotal;
+  p_sb->dZoneFree = nclusttotal;
+  p_sb->dZoneRetriev = dZoneRetriev
+  p_sb->dHead = 
+  p_sb->dTail =
+  p_sb->reserved = RESERV_AREA_SIZE;
+  
+  return 0;
 
   return 0;
 }
@@ -330,7 +355,7 @@ static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itota
 static int fillInINT (SOSuperBlock *p_sb)
 {
 
-  /* insert your code here */
+  /* insert your code here FUNCAO 2*/
 
   return 0;
 }
@@ -344,7 +369,7 @@ static int fillInINT (SOSuperBlock *p_sb)
 static int fillInRootDir (SOSuperBlock *p_sb)
 {
 
-  /* insert your code here */
+  /* insert your code here FUNCAO 3*/
 
   return 0;
 }
@@ -359,7 +384,7 @@ static int fillInRootDir (SOSuperBlock *p_sb)
 static int fillInGenRep (SOSuperBlock *p_sb, int zero)
 {
 
-  /* insert your code here */
+  /* insert your code here FUNCAO 4*/
 
   return 0;
 }
