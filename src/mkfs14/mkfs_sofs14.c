@@ -406,16 +406,16 @@ static int fillInRootDir (SOSuperBlock *p_sb)
   
   inode[0].mode = INODE_DIR | INODE_WR_USR | INODE_EX_USR | INODE_RD_USR | INODE_WR_GRP | INODE_EX_GRP | INODE_RD_GRP |
                   INODE_WR_OTH | INODE_EX_OTH | INODE_RD_OTH; //definir inode como directorio, operacoes..
-  inode[0].refCount = retainCount(); //nao sei
+  inode[0].refCount = 2; //.-> ele proprio  ..-> directorio imediamtamente acima   retainCount(); //nao sei
   inode[0].owner = getuid(); // retorna o id do utilizador 
   inode[0].group = getgid(); // retorna o id do grupo
   inode[0].size = sizeof(inode);
-  inode[0].cluCount = 
-  inode[0].vD1 = 
-  inode[0].vD2 = 
-  inode[0].d = 
-  inode[0].i1 = 
-  inode[0].i2 = 
+  inode[0].cluCount = 1;  // size in clusters
+  inode[0].vD1.aTime = time(NULL); // recebe o tempo em segundos
+  inode[0].vD2.mTime = inode[0].vD1.aTime;
+  inode[0].d = d[N_DIRECT];
+  inode[0].i1 = NULL_INODE; // referencias indirectas
+  inode[0].i2 = NULL_INODE;
   
   return 0;
 }
