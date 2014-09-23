@@ -477,7 +477,7 @@ static int fillInGenRep (SOSuperBlock *p_sb, int zero)
 	  return stat;
   
       //TODO falta implementar a inicializacao a zeros
-      
+  }
       
   return 0;
 }
