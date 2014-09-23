@@ -460,10 +460,10 @@ static int fillInGenRep (SOSuperBlock *p_sb, int zero)
       if( (stat = soReadCacheCluster(NFClt,&cluster)) !=0)
 	  return stat;
       
-      if( i = 0){
+      if(i == 0){
 	  cluster.prev = NULL_CLUSTER;
 	  cluster.stat = NULL_INODE;
-      } else if( i = p_sb->dZoneTotal ){
+      } else if( i == (p_sb->dZoneTotal) ){
 	  cluster.prev = i-1;
 	  cluster.next = NULL_CLUSTER;
 	  cluster.stat = NULL_INODE;
