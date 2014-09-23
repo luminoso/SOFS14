@@ -333,7 +333,7 @@ static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itota
   p_sb->nTotal = ntotal;				// dado pelo argumento da funcao
   p_sb->mStat = PRU;					// o filesystem é novo, está bem desmontado
   p_sb->iTableStart = 1;				// o bloco 0 é o superbloco
-  p_sb->iTableSize = (itotal / IPB) + (itotal % IPB);
+  p_sb->iTableSize = (itotal / IPB) + (itotal % IPB);	// numero de blocos que a tabela i ocula
   p_sb->iTotal = itotal;				// o numero total de nos-i
   p_sb->iFree = itotal - 1;				// o primeiro inode está ocupado com a raiz "/"
   p_sb->iHead = 0;
@@ -365,9 +365,22 @@ static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itota
 
 static int fillInINT (SOSuperBlock *p_sb)
 {
+    
+  SOSuperBlock *p_sb;
+  int stat;
+  if( (stat = soLoadSuperBlock() ) != 0)
+    return stat;
 
-  /* insert your code here FUNCAO 2*/
+  p_sb = soGetSuperBlock();
+ 
 
+  uint32_t inodepos;
+  for(inodepos = p_sb.iTableStart; firstinode < p_sb.iTotal; inodepos++)
+
+      
+  if ( (stat = soStoreSuperBlock()) != 0) 
+	return stat; 
+      
   return 0;
 }
 
