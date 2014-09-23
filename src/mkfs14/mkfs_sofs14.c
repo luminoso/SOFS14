@@ -338,12 +338,11 @@ static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itota
   p_sb->dZoneTotal = nclusttotal;
   p_sb->dZoneFree = nclusttotal;
   p_sb->dZoneRetriev = dZoneRetriev
-  p_sb->dHead = 
-  p_sb->dTail =
+  p_sb->dZoneInsert =
+  p_sb->dHead = 0 // não tenho a certeza 
+  p_sb->dTail = 0 // não tenho a certeza
   p_sb->reserved = RESERV_AREA_SIZE;
   
-  return 0;
-
   return 0;
 }
 
