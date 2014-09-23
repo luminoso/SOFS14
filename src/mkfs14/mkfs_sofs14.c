@@ -418,8 +418,8 @@ static int fillInRootDir (SOSuperBlock *p_sb)
   SOInode *inode;
   inode = soGetBlockInT(); // tabela de inodes carregada
   
-  inode[0].mode = INODE_DIR | INODE_WR_USR | INODE_EX_USR | INODE_RD_USR | INODE_WR_GRP | INODE_EX_GRP | INODE_RD_GRP |
-                  INODE_WR_OTH | INODE_EX_OTH | INODE_RD_OTH; //definir inode como directorio, operacoes..
+  inode[0].mode = INODE_DIR | INODE_WR_USR | INODE_EX_USR | INODE_RD_USR | INODE_EX_GRP | INODE_RD_GRP |
+                  INODE_EX_OTH | INODE_RD_OTH; //definir inode como directorio, operacoes..
   inode[0].refCount = 2; //.-> ele proprio  ..-> directorio imediamtamente acima   retainCount(); //nao sei
   inode[0].owner = getuid(); // retorna o id do utilizador 
   inode[0].group = getgid(); // retorna o id do grupo
