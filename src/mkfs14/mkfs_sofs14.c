@@ -373,14 +373,18 @@ static int fillInINT (SOSuperBlock *p_sb)
   p_sb = soGetSuperBlock();
 
   SOInode *inode;
-  inode = soGetBlockInt();
+  inode = soGetBlockInT();
  
   uint32_t inodepos;
-  for(inodepos = p_sb->iTableStart; inodepos < p_sb->iTotal; inodepos++)
-    inode[inodepos] = NULL_INODE;
+  for(inodepos = p_sb->iTableStart; inodepos < p_sb->iTotal - 1; inodepos++)
+  {
+    //inode[inodepos] = NULL_INODE;
+    inode[inodepos].vD1.next = &inode[inodepos+1];
+    inode[inodepos+1].vD2.prev = &inode[inodepos];
+  }
       
   if ((stat = soStoreSuperBlock()) != 0) 
-	return stat; 
+	 return stat; 
       
   return 0;
 }
@@ -402,7 +406,7 @@ static int fillInRootDir (SOSuperBlock *p_sb)
   p_sb = soGetSuperBlock(); // super bloco carregado
 
   SOInode *inode;
-  inode = soGetBlockInt(); // tabela de inodes carregada
+  inode = soGetBlockInT(); // tabela de inodes carregada
   
   inode[0].mode = INODE_DIR | INODE_WR_USR | INODE_EX_USR | INODE_RD_USR | INODE_WR_GRP | INODE_EX_GRP | INODE_RD_GRP |
                   INODE_WR_OTH | INODE_EX_OTH | INODE_RD_OTH; //definir inode como directorio, operacoes..
