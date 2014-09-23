@@ -379,23 +379,34 @@ static int fillInINT (SOSuperBlock *p_sb)
   int stat;
   if( (stat = soLoadSuperBlock() ) != 0)
     return stat;
-  
+
   p_sb = soGetSuperBlock();
 
-  SOInode *inode;
-  inode = soGetBlockInT();
- 
-  uint32_t inodepos;
-  for(inodepos = p_sb->iTableStart; inodepos < p_sb->iTotal - 1; inodepos++)
+  SOInode inodeT[p_sb->iTotal]; // criaçao da inode table
+
+  int inodepos;
+  for(inodepos = 0; inodepos < p_sb->iTotal; inodepos++)
   {
-    //inode[inodepos] = NULL_INODE;
-    inode[inodepos].vD1.next = &inode[inodepos+1];
-    inode[inodepos+1].vD2.prev = &inode[inodepos];
+    inodeT[inodepos].mode = INODE_FREE; //definir inode como livre
+    inodeT[inodepos].refCount = 0; //não tem referencias
+    inodeT[inodepos].owner = 0; // utilizador default e 0 
+    inodeT[inodepos].group = 0; // grupo default e 0
+    inodeT[inodepos].size = 0; // não tem tamanho
+    inodeT[inodepos].cluCount = 0;  // size in clusters
+    inodeT[inodepos].vD1.next = inodepos +1; // como inode esta vazio o campo da union usado e o next que contem o indice do proximo indode na lista bi-ligada
+    inodeT[inodepos].vD2.prev = inodepos -1;
+    int i;
+    for (i = 0; i < N_DIRECT; i++)
+    {
+      inodeT[inodepos].d[i] = NULL_INODE; //inicializar todas as referencias a clusters a null
+    }
+    inodeT[inodepos].i1 = NULL_INODE; // referencias indirectas
+    inodeT[inodepos].i2 = NULL_INODE;
   }
-      
   if ((stat = soStoreSuperBlock()) != 0) 
 	 return stat; 
-      
+
+  //falta enviar a inodeT para o buffer cache para ser escrito no disco
   return 0;
 }
 
