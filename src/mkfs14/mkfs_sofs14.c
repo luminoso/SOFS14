@@ -318,31 +318,35 @@ static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itota
 {
 
   /* insert your code here FUNCAO 1*/
-    p_sb->magic = 0xFFFF;		// inicialmente é 0xFFFF, no futuro será MAGIC_NUMBER
+  p_sb->magic = 0xFFFF;					// inicialmente é 0xFFFF, no futuro será MAGIC_NUMBER
   p_sb->version = VERSION_NUMBER;
   
   // funcao que copia o nome (array de caracteres)
   unsigned int stringposition;
   for(stringposition = 0; stringposition < strlen((char *)name) && stringposition < PARTITION_NAME_SIZE /* +1 ? */; stringposition++){ 
       p_sb->name[stringposition] = name[stringposition];
-  
+
   p_sb->nTotal = ntotal;				// dado pelo argumento da funcao
   p_sb->mStat = PRU;					// o filesystem é novo, está bem desmontado
   p_sb->iTableStart = 1;				// o bloco 0 é o superbloco
-  p_sb->iTableSize = (itotal / IPB) + (itotal % IPB);	// de onde vem isto?
-  p_sb->iTotal = itotal:				// o numero total de nos-i
+  p_sb->iTableSize = (itotal / IPB) + (itotal % IPB);
+  p_sb->iTotal = itotal;				// o numero total de nos-i
   p_sb->iFree = itotal - 1;				// o primeiro inode está ocupado com a raiz "/"
   p_sb->iHead = 0;
   p_sb->iTail = itotal -1 ;
-  p_sb->dZoneStart = 1+ itotal + 1;
+  p_sb->dZoneStart = 1 + itotal + 1;			// superbloco + numerot total de blocos i + 1 posicao
   p_sb->dZoneTotal = nclusttotal;
   p_sb->dZoneFree = nclusttotal;
-  p_sb->dZoneRetriev = dZoneRetriev
-  p_sb->dZoneInsert =
-  p_sb->dHead = 0 // não tenho a certeza 
-  p_sb->dTail = 0 // não tenho a certeza
-  p_sb->reserved = RESERV_AREA_SIZE;
-  
+  struct fCNode dzoneretriev, dzoneinsert;
+  p_sb->dZoneRetriev = dzoneretriev;
+  p_sb->dZoneRetriev.cacheIdx = 0;
+  p_sb->dZoneInsert = dzoneinsert;
+  p_sb->dZoneInsert.cacheIdx = DZONE_CACHE_SIZE;
+  p_sb->dHead = 0; // não tenho a certeza 
+  p_sb->dTail = 0; // não tenho a certeza
+  uint32_t i;
+  for(i = 0; i < RESERV_AREA_SIZE; i++)
+      p_sb->reserved[i] = 0x00;
   return 0;
 }
 
