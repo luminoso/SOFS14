@@ -330,7 +330,7 @@ static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itota
   // TODO usar uma funcao decente. Tipo strcpy ou memcpy
   // funcao que copia o nome (array de caracteres)
   unsigned int i;
-  for(i = 0; i < strlen((char *)name) && i < PARTITION_NAME_SIZE /* +1 ? */; i++){ 
+  for(i = 0; i < strlen((char *)name) && i < PARTITION_NAME_SIZE /* +1 ? */; i++) 
       p_sb->name[i] = name[i];
 
   p_sb->nTotal = ntotal;				// dado pelo argumento da funcao
@@ -361,8 +361,9 @@ static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itota
   for(i = 0; i < RESERV_AREA_SIZE; i++)
       p_sb->reserved[i] = 0x00;
 
-  if((stat = soStoreSuperBlock()) != 0)
-    return stat;
+  //if((stat = soStoreSuperBlock()) != 0)
+  //  return stat;
+  //estava a provocar erros de compilador
   
   return 0;
 }
