@@ -395,13 +395,24 @@ static int fillInRootDir (SOSuperBlock *p_sb)
 {
 
   /* insert your code here FUNCAO 3*/
+  int stat;
+  if( (stat = soLoadSuperBlock() ) != 0)
+    return stat;
+
+  p_sb = soGetSuperBlock(); // super bloco carregado
+
+  SOInode *inode;
+  inode = soGetBlockInt(); // tabela de inodes carregada
+
+
 
   
-  inode[0].mode = INODE_DIR; //definir inode como directorio
-  inode[0].refCount = //nao sei
-  inode[0].owner = 
-  inode[0].group =
-  inode[0].size = 
+  inode[0].mode = INODE_DIR | INODE_WR_USR | INODE_EX_USR | INODE_RD_USR | INODE_WR_GRP | INODE_EX_GRP | INODE_RD_GRP |
+                  INODE_WR_OTH | INODE_EX_OTH | INODE_RD_OTH; //definir inode como directorio, operacoes..
+  inode[0].refCount = retainCount(); //nao sei
+  inode[0].owner = getuid(); // retorna o id do utilizador 
+  inode[0].group = getgid(); // retorna o id do grupo
+  inode[0].size = sizeof(inode);
   inode[0].cluCount = 
   inode[0].vD1 = 
   inode[0].vD2 = 
