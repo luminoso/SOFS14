@@ -371,11 +371,15 @@ static int fillInINT (SOSuperBlock *p_sb)
     return stat;
   
   p_sb = soGetSuperBlock();
+
+  SOInode *inode;
+  inode = soGetBlockInt();
  
   uint32_t inodepos;
   for(inodepos = p_sb->iTableStart; inodepos < p_sb->iTotal; inodepos++)
+    inode[inodepos] = NULL_INODE;
       
-  if ( (stat = soStoreSuperBlock()) != 0) 
+  if ((stat = soStoreSuperBlock()) != 0) 
 	return stat; 
       
   return 0;
@@ -392,6 +396,19 @@ static int fillInRootDir (SOSuperBlock *p_sb)
 
   /* insert your code here FUNCAO 3*/
 
+  
+  inode[0].mode = INODE_DIR; //definir inode como directorio
+  inode[0].refCount = //nao sei
+  inode[0].owner = 
+  inode[0].group =
+  inode[0].size = 
+  inode[0].cluCount = 
+  inode[0].vD1 = 
+  inode[0].vD2 = 
+  inode[0].d = 
+  inode[0].i1 = 
+  inode[0].i2 = 
+  
   return 0;
 }
 
