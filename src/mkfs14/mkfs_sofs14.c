@@ -366,17 +366,14 @@ static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itota
 static int fillInINT (SOSuperBlock *p_sb)
 {
     
-  SOSuperBlock *p_sb;
   int stat;
   if( (stat = soLoadSuperBlock() ) != 0)
     return stat;
-
+  
   p_sb = soGetSuperBlock();
  
-
   uint32_t inodepos;
-  for(inodepos = p_sb.iTableStart; firstinode < p_sb.iTotal; inodepos++)
-
+  for(inodepos = p_sb->iTableStart; inodepos < p_sb->iTotal; inodepos++)
       
   if ( (stat = soStoreSuperBlock()) != 0) 
 	return stat; 
