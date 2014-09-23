@@ -403,9 +403,6 @@ static int fillInRootDir (SOSuperBlock *p_sb)
 
   SOInode *inode;
   inode = soGetBlockInt(); // tabela de inodes carregada
-
-
-
   
   inode[0].mode = INODE_DIR | INODE_WR_USR | INODE_EX_USR | INODE_RD_USR | INODE_WR_GRP | INODE_EX_GRP | INODE_RD_GRP |
                   INODE_WR_OTH | INODE_EX_OTH | INODE_RD_OTH; //definir inode como directorio, operacoes..
@@ -446,7 +443,7 @@ static int fillInGenRep (SOSuperBlock *p_sb, int zero)
       NFClt = p_sb->dZoneStart * i * BLOCKS_PER_CLUSTER;
       
       struct soDataClust cluster;
-      if( (stat = soReadCacheCluster(NFClt,0)) !=0)
+      if( (stat = soReadCacheCluster(NFClt,&cluster)) !=0)
 	  return stat;
       
       if( i = 0){
@@ -462,7 +459,7 @@ static int fillInGenRep (SOSuperBlock *p_sb, int zero)
 	  cluster.stat = NULL_INODE;
       }
       
-      if( (stat = soWriteCacheCluster(NFClt,0)) != 0)
+      if( (stat = soWriteCacheCluster(NFClt,&cluster)) != 0)
 	  return stat;
   
       //TODO falta implementar a inicializacao a zeros
