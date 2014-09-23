@@ -427,14 +427,47 @@ static int fillInRootDir (SOSuperBlock *p_sb)
    * create the general repository of free data clusters as a double-linked list where the data clusters themselves are
    * used as nodes
    * zero fill the remaining data clusters if full formating was required:
-   *   zero mode was selected
+   *  zero mode was selected
    */
 
 static int fillInGenRep (SOSuperBlock *p_sb, int zero)
 {
 
-  /* insert your code here FUNCAO 4*/
-
+  int stat;
+  if( (stat = soLoadSuperBlock() ) != 0)
+    return stat;
+  
+  p_sb = soGetSuperBlock();
+  
+  int i;
+  uint32_t NFClt;
+  
+  for( i = p_sb->dZoneStart ; i <= p_sb->dZoneTotal ; i++){
+      NFClt = p_sb->dZoneStart * i * BLOCKS_PER_CLUSTER;
+      
+      struct soDataClust cluster;
+      if( (stat = soReadCacheCluster(NFClt,0)) !=0)
+	  return stat;
+      
+      if( i = 0){
+	  cluster.prev = NULL_CLUSTER;
+	  cluster.stat = NULL_INODE;
+      } else if( i = p_sb->dZoneTotal ){
+	  cluster.prev = i-1;
+	  cluster.next = NULL_CLUSTER;
+	  cluster.stat = NULL_INODE;
+      } else {
+	  cluster.prev = i-1;
+	  cluster.next = i+1;
+	  cluster.stat = NULL_INODE;
+      }
+      
+      if( (stat = soWriteCacheCluster(NFClt,0)) != 0)
+	  return stat;
+  
+      //TODO falta implementar a inicializacao a zeros
+      
+      
   return 0;
 }
 
