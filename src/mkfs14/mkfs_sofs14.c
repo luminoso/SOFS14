@@ -315,40 +315,49 @@ static void printError (int errcode, char *cmd_name)
 
 static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itotal, uint32_t nclusttotal,
                              unsigned char *name)
-{
-  int stat;
-  if((stat = soLoadSuperBlock()) != 0)
-    return stat;
-  p_sb = soGetSuperBlock();
-
-  /* insert your code here FUNCAO 1*/
+{  
+  //int stat;
+  //if((stat = soLoadSuperBlock()) != 0)
+  //  return stat;
+  //p_sb = soGetSuperBlock();
+  //nao necessario, feito na linha 172 ??
+    
+    
+  /* HEADER */
   p_sb->magic = 0xFFFF;					// inicialmente é 0xFFFF, no futuro será MAGIC_NUMBER
   p_sb->version = VERSION_NUMBER;
   
+  // TODO usar uma funcao decente. Tipo strcpy ou memcpy
   // funcao que copia o nome (array de caracteres)
-  unsigned int stringposition;
-  for(stringposition = 0; stringposition < strlen((char *)name) && stringposition < PARTITION_NAME_SIZE /* +1 ? */; stringposition++){ 
-      p_sb->name[stringposition] = name[stringposition];
+  unsigned int i;
+  for(i = 0; i < strlen((char *)name) && i < PARTITION_NAME_SIZE /* +1 ? */; i++){ 
+      p_sb->name[i] = name[i];
 
   p_sb->nTotal = ntotal;				// dado pelo argumento da funcao
   p_sb->mStat = PRU;					// o filesystem é novo, está bem desmontado
+
+  
+  /* Inode table */
   p_sb->iTableStart = 1;				// o bloco 0 é o superbloco
   p_sb->iTableSize = (itotal / IPB) + (itotal % IPB);	// numero de blocos que a tabela i ocula
   p_sb->iTotal = itotal;				// o numero total de nos-i
   p_sb->iFree = itotal - 1;				// o primeiro inode está ocupado com a raiz "/"
-  p_sb->iHead = 0;
-  p_sb->iTail = itotal -1 ;
+  p_sb->iHead = 1;					// 1, pois o zero esta ocupado com o inode-raiz
+  p_sb->iTail = itotal -1 ;				// descontamos o inode da raiz
+  
+  /* DataZone */
   p_sb->dZoneStart = 1 + itotal + 1;			// superbloco + numerot total de blocos i + 1 posicao
-  p_sb->dZoneTotal = nclusttotal;
-  p_sb->dZoneFree = nclusttotal;
+  p_sb->dZoneTotal = nclusttotal;			// o total nao inclui o bloco raiz
+  p_sb->dZoneFree = nclusttotal - 1;			// a raiz ocupa um bloco
   struct fCNode dzoneretriev, dzoneinsert;
   p_sb->dZoneRetriev = dzoneretriev;
   p_sb->dZoneRetriev.cacheIdx = 0;
   p_sb->dZoneInsert = dzoneinsert;
   p_sb->dZoneInsert.cacheIdx = DZONE_CACHE_SIZE;
-  p_sb->dHead = 0; // não tenho a certeza 
-  p_sb->dTail = 0; // não tenho a certeza
-  uint32_t i;
+  p_sb->dHead = 0;					// não tenho a certeza
+  p_sb->dTail = 0;					// não tenho a certeza
+  
+  // nota, a variavel i ja foi inicializada
   for(i = 0; i < RESERV_AREA_SIZE; i++)
       p_sb->reserved[i] = 0x00;
 
