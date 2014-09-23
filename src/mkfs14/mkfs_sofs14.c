@@ -316,6 +316,10 @@ static void printError (int errcode, char *cmd_name)
 static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itotal, uint32_t nclusttotal,
                              unsigned char *name)
 {
+  int stat;
+  if((stat = soLoadSuperBlock()) != 0)
+    return stat;
+  p_sb = soGetSuperBlock();
 
   /* insert your code here FUNCAO 1*/
   p_sb->magic = 0xFFFF;					// inicialmente é 0xFFFF, no futuro será MAGIC_NUMBER
@@ -347,6 +351,10 @@ static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itota
   uint32_t i;
   for(i = 0; i < RESERV_AREA_SIZE; i++)
       p_sb->reserved[i] = 0x00;
+
+  if((stat = soStoreSuperBlock()) != 0)
+    return stat;
+  
   return 0;
 }
 
