@@ -427,7 +427,7 @@ static int fillInRootDir (SOSuperBlock *p_sb)
   inode[0].cluCount = 1;  // size in clusters
   inode[0].vD1.aTime = time(NULL); // recebe o tempo em segundos
   inode[0].vD2.mTime = inode[0].vD1.aTime;
-  inode[0].d = d[N_DIRECT];
+  //" error: ‘d’ undeclared inode[0].d = d[N_DIRECT];
   inode[0].i1 = NULL_INODE; // referencias indirectas
   inode[0].i2 = NULL_INODE;
   
