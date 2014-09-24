@@ -487,43 +487,41 @@ static int fillInRootDir (SOSuperBlock *p_sb)
 
 static int fillInGenRep (SOSuperBlock *p_sb, int zero)
 {
-
-  int stat;
-  if( (stat = soLoadSuperBlock() ) != 0)
-    return stat;
-  
-  p_sb = soGetSuperBlock();
-  
-  int i;
-  uint32_t NFClt;
-  
-  for( i = p_sb->dZoneStart ; i <= p_sb->dZoneTotal ; i++){
-      NFClt = p_sb->dZoneStart * i * BLOCKS_PER_CLUSTER;
-      
-      struct soDataClust cluster;
-      if( (stat = soReadCacheCluster(NFClt,&cluster)) !=0)
-	  return stat;
-      
-      if(i == 0){
-	  cluster.prev = NULL_CLUSTER;
-	  cluster.stat = NULL_INODE;
-      } else if( i == (p_sb->dZoneTotal) ){
-	  cluster.prev = i-1;
-	  cluster.next = NULL_CLUSTER;
-	  cluster.stat = NULL_INODE;
-      } else {
-	  cluster.prev = i-1;
-	  cluster.next = i+1;
-	  cluster.stat = NULL_INODE;
-      }
-      
-      if( (stat = soWriteCacheCluster(NFClt,&cluster)) != 0)
-	  return stat;
-  
-      //TODO falta implementar a inicializacao a zeros
-  }
-      
-  return 0;
+ /* A zona de dados está organizada num array de cluster de dados.
+  * A referencia a um cluster é o indico ou o numero logico do cluster no array.
+  * O número fisico  é o indice do primeiro bloco que forma.
+  * A relacao entre os dois é dada por
+  * NFClt = dzone_start + NLClt * BLOCKS_PER_CLUSTER;
+  * (SOFS14.pdf, pagina 10)
+  */
+ int stat; 
+ uint32_t clusternumber;
+ SODataClust datacluster,datacluster_previous;
+ 
+ 
+ // o primeiro datacluster está ocupado com o directorio raiz
+ for( clusternumber = 1; clusternumber < p_sb->dZoneTotal ; clusternumber++){
+	// ler o datacluster anterior
+	if ( (stat = soReadCacheCluster(clusternumber-1,&datacluster_previous)) != 0)
+	    return stat;
+	   
+	// ler o datacluster que vamos trabalhar
+	if( (stat = soReadCacheCluster(clusternumber,&datacluster)) != 0)
+	    return stat;
+	
+	datacluster_previous.next = clusternumber;
+	datacluster.prev = clusternumber - 1;
+	
+	 if(zero){
+	     unsigned int charpos;
+	     for(charpos = 0; charpos < sizeof(datacluster.info.data); charpos++)
+		 datacluster.info.data[charpos] = '\0';
+	 }
+    }
+    // neste momento o clusternumber está no ultimo datacluster
+    datacluster.next = NULL_CLUSTER;
+    
+    return 0;
 }
 
 /*
