@@ -418,8 +418,14 @@ static int fillInRootDir (SOSuperBlock *p_sb)
 
   p_sb = soGetSuperBlock(); // super bloco carregado
 
+  // carregar o inode para a memoria (inode zero), vamos ler o inode zero
+  if( (stat = soLoadBlockInT(0)) != 0)
+      return stat;
+  
+  // e agora obtemos o ponteiro para o bloco carregado  
   SOInode *inode;
-  inode = soGetBlockInT(); // tabela de inodes carregada
+  if( (inode = soGetBlockInT()) == NULL) // tabela de inodes carregada
+      return -1;			 // FIXME: return inode da erro de cast. entao o que retornar em caso de erro?
   
   inode[0].mode = INODE_DIR | INODE_WR_USR | INODE_EX_USR | INODE_RD_USR | INODE_EX_GRP | INODE_RD_GRP |
                   INODE_EX_OTH | INODE_RD_OTH; //definir inode como directorio, operacoes..
