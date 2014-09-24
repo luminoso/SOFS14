@@ -367,38 +367,48 @@ static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itota
 
 static int fillInINT (SOSuperBlock *p_sb)
 {
-    
   int stat;
-  if( (stat = soLoadSuperBlock() ) != 0)
-    return stat;
-
-  p_sb = soGetSuperBlock();
-
-  SOInode inodeT[p_sb->iTotal]; // criaçao da inode table
-
-  int inodepos;
+  
+  // vamos ler o bloco 0 da tabela de inodes
+  // a funcao soLoadBlockInT já faz as contas certas para ler
+  // o bloco i na posicao certa
+  if( (stat = soLoadBlockInT(0)) != 0)
+      return stat;
+  
+  // se lido correctamente vamos ober o ponteiro para ele
+  SOInode *pinodetable = soGetBlockInT();// verificar se null ?		
+  
+  unsigned int inodepos;
   for(inodepos = 0; inodepos < p_sb->iTotal; inodepos++)
   {
-    inodeT[inodepos].mode = INODE_FREE; //definir inode como livre
-    inodeT[inodepos].refCount = 0; //não tem referencias
-    inodeT[inodepos].owner = 0; // utilizador default e 0 
-    inodeT[inodepos].group = 0; // grupo default e 0
-    inodeT[inodepos].size = 0; // não tem tamanho
-    inodeT[inodepos].cluCount = 0;  // size in clusters
-    inodeT[inodepos].vD1.next = inodepos +1; // como inode esta vazio o campo da union usado e o next que contem o indice do proximo indode na lista bi-ligada
-    inodeT[inodepos].vD2.prev = inodepos -1;
-    int i;
+    //criar um inode
+    SOInode inodeT;
+    //atribuir um inode à posicao inodepos da tablea de inodes
+    pinodetable[inodepos] = inodeT;
+    
+    // escrever informacoes genéricas no inode na posicao inodepos
+    inodeT.mode = INODE_FREE;		// definir inode como livre
+    inodeT.refCount = 0;		// não tem referencias
+    inodeT.owner = 0;			// utilizador default e 0 
+    inodeT.group = 0;			// grupo default e 0
+    inodeT.size = 0;			// não tem tamanho
+    inodeT.cluCount = 0;		// size in clusters
+    inodeT.vD1.next = inodepos +1;	// como inode esta vazio o campo da union usado e o next que contem o indice do proximo indode na lista bi-ligada
+    inodeT.vD2.prev = inodepos -1;
+    unsigned int i;
     for (i = 0; i < N_DIRECT; i++)
     {
-      inodeT[inodepos].d[i] = NULL_INODE; //inicializar todas as referencias a clusters a null
+      inodeT.d[i] = NULL_INODE;		// inicializar todas as referencias a clusters a null
     }
-    inodeT[inodepos].i1 = NULL_INODE; // referencias indirectas
-    inodeT[inodepos].i2 = NULL_INODE;
+    inodeT.i1 = NULL_INODE;		// referencias indirectas
+    inodeT.i2 = NULL_INODE;
   }
-  if ((stat = soStoreSuperBlock()) != 0) 
-	 return stat; 
-
-  //falta enviar a inodeT para o buffer cache para ser escrito no disco
+  // TODO falta a lógica para o ultimo inode?
+  
+  // gravar as alteracoes que fizemos na tabela de nós i
+  if( (stat = soStoreBlockInT()) != 0)
+      return stat;
+  
   return 0;
 }
 
