@@ -448,31 +448,6 @@ static int fillInRootDir (SOSuperBlock *p_sb)
   inode[0].i1 = NULL_INODE; // referencias indirectas
   inode[0].i2 = NULL_INODE;
   
-
-  /* inicialização de todos os outros i-nodes para valor padrão */
-
-  for(i = 1; i < p_sb->itotal; i++)
-  {
-    inode[i].mode = INODE_FREE;
-    inode[i].owner = 0;
-    inode[i].group = 0;
-    inode[i].next = i+1; /*lista de nós i livres*/
-    inode[i].prev = i-1; /*lista de nós i livres*/
-    inode[i].size = 0; /* size = 0 bytes tamanho padrao*/
-    inode[i].refCount = 0; /*não existem referencias para este nó i*/
-    inode[i].cluCount = 0; /* não existem clusters para anexar este nó i*/
-
-    int j;
-    for(j = 0; j < N_DIRECT; j++)
-    {
-      inode[i].d[j] = NULL_INODE; /* inicializa todas as referencias directas a NULL_INODE*/
-    }
-
-    inode[i].i1 = NULL_INODE; /* pontos de referencia indirecta para NULL_INODE*/
-    inode[i].i2 = NULL_INODE; /* pontos de referenca indirecta para NULL_INODE*/
-  }
-    
-
   return 0;
 }
 
