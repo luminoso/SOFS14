@@ -316,27 +316,20 @@ static void printError (int errcode, char *cmd_name)
 static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itotal, uint32_t nclusttotal,
                              unsigned char *name)
 {  
-  //int stat;
+  unsigned int i,stat;
+
   //if((stat = soLoadSuperBlock()) != 0)
   //  return stat;
   //p_sb = soGetSuperBlock();
   //nao necessario, feito na linha 172 ??
     
-    
   /* HEADER */
   p_sb->magic = 0xFFFF;					// inicialmente é 0xFFFF, no futuro será MAGIC_NUMBER
   p_sb->version = VERSION_NUMBER;
-  
-  // TODO usar uma funcao decente. Tipo strcpy ou memcpy
-  // funcao que copia o nome (array de caracteres)
-  unsigned int i;
-  for(i = 0; i < strlen((char *)name) && i < PARTITION_NAME_SIZE /* +1 ? */; i++) 
-      p_sb->name[i] = name[i];
-
+  memcpy(p_sb->name,name,PARTITION_NAME_SIZE+1);	// TODO strncpy queixa-se que o name é UNsigned char
   p_sb->nTotal = ntotal;				// dado pelo argumento da funcao
   p_sb->mStat = PRU;					// o filesystem é novo, está bem desmontado
 
-  
   /* Inode table */
   p_sb->iTableStart = 1;				// o bloco 0 é o superbloco
   p_sb->iTableSize = (itotal / IPB) + (itotal % IPB);	// numero de blocos que a tabela i ocula
@@ -360,10 +353,9 @@ static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itota
   // nota, a variavel i ja foi inicializada
   for(i = 0; i < RESERV_AREA_SIZE; i++)
       p_sb->reserved[i] = 0x00;
-
-  //if((stat = soStoreSuperBlock()) != 0)
-  //  return stat;
-  //estava a provocar erros de compilador
+  
+  if( ( stat = soStoreSuperBlock()) != 0)
+    return stat;  
   
   return 0;
 }
