@@ -473,6 +473,8 @@ static int fillInRootDir (SOSuperBlock *p_sb)
   inode[0].i1 = NULL_INODE; // referencias indirectas
   inode[0].i2 = NULL_INODE;
   
+  // TODO agora que o nó i esta preenchido, falta encher directorio raiz na zona de dados
+  
   return 0;
 }
 
