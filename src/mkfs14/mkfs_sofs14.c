@@ -336,25 +336,29 @@ static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itota
   p_sb->iTotal = itotal;				// o numero total de nos-i
   p_sb->iFree = itotal - 1;				// o primeiro inode está ocupado com a raiz "/"
   p_sb->iHead = 1;					// 1, pois o zero esta ocupado com o inode-raiz
-  p_sb->iTail = itotal -1 ;				// descontamos o inode da raiz
+  p_sb->iTail = itotal - 1;				// descontamos o inode da raiz
   
   /* DataZone */
-  p_sb->dZoneStart = 1 + itotal + 1;			// superbloco + numerot total de blocos i + 1 posicao
+  p_sb->dZoneStart = 1 + itotal/IPB;			// superbloco + numerot total de blocos i + 1 posicao
   p_sb->dZoneTotal = nclusttotal;			// o total nao inclui o bloco raiz
   p_sb->dZoneFree = nclusttotal - 1;			// a raiz ocupa um bloco
-  struct fCNode dzoneretriev, dzoneinsert;
+  struct fCNode dzoneretriev, dzoneinsert;		// FIXME pq precisa de "struct" antes?
   p_sb->dZoneRetriev = dzoneretriev;
-  p_sb->dZoneRetriev.cacheIdx = 0;
+  p_sb->dZoneRetriev.cacheIdx = DZONE_CACHE_SIZE;
+  // encher as caches com null cluster. nao tenho a certeza
+  // é para ver se passa na validacao do mkfs_sofs14
+  //for(i = 0; i< DZONE_CACHE_SIZE; i++)
+  //    p_sb->dZoneRetriev.cache[i] = p_sb->dZoneInsert.cache[i] = NULL_CLUSTER;
   p_sb->dZoneInsert = dzoneinsert;
-  p_sb->dZoneInsert.cacheIdx = DZONE_CACHE_SIZE;
-  p_sb->dHead = 0;					// não tenho a certeza
-  p_sb->dTail = 0;					// não tenho a certeza
+  p_sb->dZoneInsert.cacheIdx = 0;
+  p_sb->dHead = 1;					// o primeir está ocupado com o directorio raiz
+  p_sb->dTail = nclusttotal - 1;			// não tenho a certeza
   
   // nota, a variavel i ja foi inicializada
   for(i = 0; i < RESERV_AREA_SIZE; i++)
       p_sb->reserved[i] = 0x00;
   
-  if( ( stat = soStoreSuperBlock()) != 0)
+  if( (stat = soStoreSuperBlock()) != 0)
     return stat;  
   
   return 0;
