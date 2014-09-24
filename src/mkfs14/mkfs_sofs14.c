@@ -371,28 +371,45 @@ static int fillInINT (SOSuperBlock *p_sb)
   
   // vamos ler o bloco 0 da tabela de inodes
   // a funcao soLoadBlockInT já faz as contas certas para ler
-  // o bloco i na posicao certa
+  // o bloco i na posicao certa, mas le um numero limitado de inodes por bloco
   if( (stat = soLoadBlockInT(0)) != 0)
       return stat;
   
   // se lido correctamente vamos ober o ponteiro para ele
   SOInode *pinodetable = soGetBlockInT();// verificar se null ?		
   
+  // criar um inode vazio, generico
+  SOInode inodeT;
+  // preencher as informacoes que sao iguais a todos
+  inodeT.mode = INODE_FREE;		// definir inode como livre
+  inodeT.refCount = 0;			// não tem referencias
+  inodeT.owner = 0;			// utilizador default e 0 
+  inodeT.group = 0;			// grupo default e 0
+  inodeT.size = 0;			// não tem tamanho
+  inodeT.cluCount = 0;			// size in clusters
+  
+  // precorrer todos os inodes da tabela
   unsigned int inodepos;
   for(inodepos = 0; inodepos < p_sb->iTotal; inodepos++)
   {
-    //criar um inode
-    SOInode inodeT;
-    //atribuir um inode à posicao inodepos da tablea de inodes
-    pinodetable[inodepos] = inodeT;
-    
-    // escrever informacoes genéricas no inode na posicao inodepos
-    inodeT.mode = INODE_FREE;		// definir inode como livre
-    inodeT.refCount = 0;		// não tem referencias
-    inodeT.owner = 0;			// utilizador default e 0 
-    inodeT.group = 0;			// grupo default e 0
-    inodeT.size = 0;			// não tem tamanho
-    inodeT.cluCount = 0;		// size in clusters
+    // precisamos de ler outro bloco de inodes?
+    // verdade, se precorremos todos os inodes do bloco anterior
+    // o numero de inodes por bloco é dado por IPB (inodes per block)
+    // caso verdade, vamos gravar o bloco actual e ler o bloco seguinte de inodes
+    if(inodepos % IPB == 0){
+	soStoreBlockInT();
+	
+	if( (stat = soLoadBlockInT(inodepos / IPB)) != 0)
+	    return stat;
+	
+	pinodetable = soGetBlockInT();
+    }
+
+    // atribuir um inode à posicao inodepos da tabela de inodes
+    // ter em atencao que sempre que saltamos de bloco a contagem
+    // da posicao de inodes leva um reset
+    pinodetable[inodepos%IPB] = inodeT;
+
     inodeT.vD1.next = inodepos +1;	// como inode esta vazio o campo da union usado e o next que contem o indice do proximo indode na lista bi-ligada
     inodeT.vD2.prev = inodepos -1;
     unsigned int i;
@@ -405,7 +422,7 @@ static int fillInINT (SOSuperBlock *p_sb)
   }
   // TODO falta a lógica para o ultimo inode?
   
-  // gravar as alteracoes que fizemos na tabela de nós i
+  // gravar as alteracoes que fizemos no ultimo bloco de inodes i
   if( (stat = soStoreBlockInT()) != 0)
       return stat;
   
