@@ -330,7 +330,18 @@ static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itota
       pos++;
   }
   p_sb->name[pos-name] = '\0';
-  
+
+  /* Codigo alternativo, ve se gostas guilherme *
+  int l=0;
+
+  while(name[l]!='\0'){
+    p_sb->name[l] = name[l];
+    l++;
+  }
+
+  p_sb->name[l] = '\0';           // string terminator
+  */
+
   p_sb->nTotal = ntotal;				// dado pelo argumento da funcao
   p_sb->mStat = PRU;					// o filesystem é novo, está bem desmontado
 
@@ -341,7 +352,7 @@ static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itota
   p_sb->iFree = itotal - 1;				// o primeiro inode está ocupado com a raiz "/"
   p_sb->iHead = 1;					// 1, pois o zero esta ocupado com o inode-raiz
   p_sb->iTail = itotal - 1;				// descontamos o inode da raiz
-  
+
   /* DataZone */
   p_sb->dZoneStart = 1 + itotal/IPB;			// superbloco + o numero de clusters que os blocos i ocupam
   p_sb->dZoneTotal = nclusttotal;			// o total de clusters
@@ -349,18 +360,18 @@ static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itota
   p_sb->dZoneRetriev.cacheIdx = DZONE_CACHE_SIZE;
   unsigned int i;
   for(i = 0; i < DZONE_CACHE_SIZE; i++)
-      p_sb->dZoneRetriev.cache[i] = p_sb->dZoneInsert.cache[i] = NULL_CLUSTER;
+    p_sb->dZoneRetriev.cache[i] = p_sb->dZoneInsert.cache[i] = NULL_CLUSTER;
   p_sb->dZoneInsert.cacheIdx = 0;
   p_sb->dHead = 1;					// o primeir está ocupado com o directorio raiz
   p_sb->dTail = nclusttotal - 1;			// não tenho a certeza
-  
+
   for(i = 0; i < RESERV_AREA_SIZE; i++)
-      p_sb->reserved[i] = 0xee;				// 0xEE foi sugerido pelo professor
-  
+    p_sb->reserved[i] = 0xee;				// 0xEE foi sugerido pelo professor
+
   int stat;
   if( (stat = soStoreSuperBlock()) != 0)
     return stat;  
-  
+
   return 0;
 }
 
@@ -372,16 +383,16 @@ static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itota
 static int fillInINT (SOSuperBlock *p_sb)
 {
   int stat;
-  
+
   // vamos ler o bloco 0 da tabela de inodes
   // a funcao soLoadBlockInT já faz as contas certas para ler
   // o bloco i na posicao certa, mas le um numero limitado de inodes por bloco
   if( (stat = soLoadBlockInT(0)) != 0)
-      return stat;
-  
+    return stat;
+
   // se lido correctamente vamos ober o ponteiro para ele
   SOInode *pinodetable = soGetBlockInT();// verificar se null ?		
-  
+
   // criar um inode vazio, generico
   SOInode inodeT;
   // preencher as informacoes que sao iguais a todos
@@ -399,7 +410,7 @@ static int fillInINT (SOSuperBlock *p_sb)
   }
   inodeT.i1 = NULL_INODE;   // referencias indirectas
   inodeT.i2 = NULL_INODE;
-  
+
   // precorrer todos os inodes da tabela
   unsigned int inodepos;
   for(inodepos = 0; inodepos < p_sb->iTotal; inodepos++)
@@ -410,12 +421,12 @@ static int fillInINT (SOSuperBlock *p_sb)
     // caso verdade, vamos gravar o bloco actual e ler o bloco seguinte de inodes
     if(inodepos % IPB == 0){
       if( (stat = soStoreBlockInT()) != 0)
-      return stat;
-  	
-    	if( (stat = soLoadBlockInT(inodepos / IPB)) != 0)
-    	    return stat;
-    	
-    	pinodetable = soGetBlockInT();
+        return stat;
+
+      if( (stat = soLoadBlockInT(inodepos / IPB)) != 0)
+        return stat;
+
+      pinodetable = soGetBlockInT();
     }
 
     inodeT.vD1.next = inodepos +1;  // como inode esta vazio o campo da union usado e o next que contem o indice do proximo indode na lista bi-ligada
@@ -427,18 +438,18 @@ static int fillInINT (SOSuperBlock *p_sb)
     pinodetable[inodepos%IPB] = inodeT;
   }
   // TODO falta a lógica para o ultimo inode?
-  
+
   // gravar as alteracoes que fizemos no ultimo bloco de inodes i
   if( (stat = soStoreBlockInT()) != 0)
-      return stat;
-  
+    return stat;
+
   return 0;
 }
 
 /*
  * filling in the contents of the root directory:
-     the first 2 entries are filled in with "." and ".." references
-     the other entries are empty
+ the first 2 entries are filled in with "." and ".." references
+ the other entries are empty
  */
 
 static int fillInRootDir (SOSuperBlock *p_sb)
@@ -453,15 +464,15 @@ static int fillInRootDir (SOSuperBlock *p_sb)
 
   // carregar o inode para a memoria (inode zero), vamos ler o inode zero
   if( (stat = soLoadBlockInT(0)) != 0)
-      return stat;
-  
+    return stat;
+
   // e agora obtemos o ponteiro para o bloco carregado  
   SOInode *inode;
   if( (inode = soGetBlockInT()) == NULL) // tabela de inodes carregada
-      return -1;			 // FIXME: return inode da erro de cast. entao o que retornar em caso de erro?
-  
+    return -1;			 // FIXME: return inode da erro de cast. entao o que retornar em caso de erro?
+
   inode[0].mode = INODE_DIR | INODE_WR_USR | INODE_EX_USR | INODE_RD_USR | INODE_EX_GRP | INODE_RD_GRP |
-                  INODE_EX_OTH | INODE_RD_OTH; //definir inode como directorio, operacoes..
+    INODE_EX_OTH | INODE_RD_OTH; //definir inode como directorio, operacoes..
   inode[0].refCount = 2; //.-> ele proprio  ..-> directorio imediamtamente acima   retainCount(); //nao sei
   inode[0].owner = getuid(); // retorna o id do utilizador 
   inode[0].group = getgid(); // retorna o id do grupo
@@ -478,56 +489,56 @@ static int fillInRootDir (SOSuperBlock *p_sb)
   }
   inode[0].i1 = NULL_INODE; // referencias indirectas
   inode[0].i2 = NULL_INODE;
-  
+
   // TODO agora que o nó i esta preenchido, falta encher directorio raiz na zona de dados
-  
+
   return 0;
 }
 
-  /*
-   * create the general repository of free data clusters as a double-linked list where the data clusters themselves are
-   * used as nodes
-   * zero fill the remaining data clusters if full formating was required:
-   *  zero mode was selected
-   */
+/*
+ * create the general repository of free data clusters as a double-linked list where the data clusters themselves are
+ * used as nodes
+ * zero fill the remaining data clusters if full formating was required:
+ *  zero mode was selected
+ */
 
 static int fillInGenRep (SOSuperBlock *p_sb, int zero)
 {
- /* A zona de dados está organizada num array de cluster de dados.
-  * A referencia a um cluster é o indico ou o numero logico do cluster no array.
-  * O número fisico  é o indice do primeiro bloco que forma.
-  * A relacao entre os dois é dada por
-  * NFClt = dzone_start + NLClt * BLOCKS_PER_CLUSTER;
-  * (SOFS14.pdf, pagina 10)
-  */
- int stat; 
- uint32_t clusternumber;
- SODataClust datacluster,datacluster_previous;
- 
- 
- // o primeiro datacluster está ocupado com o directorio raiz
- for( clusternumber = 1; clusternumber < p_sb->dZoneTotal ; clusternumber++){
-	// ler o datacluster anterior
-	if ( (stat = soReadCacheCluster(clusternumber-1,&datacluster_previous)) != 0)
-	    return stat;
-	   
-	// ler o datacluster que vamos trabalhar
-	if( (stat = soReadCacheCluster(clusternumber,&datacluster)) != 0)
-	    return stat;
-	
-	datacluster_previous.next = clusternumber;
-	datacluster.prev = clusternumber - 1;
-	
-	 if(zero){
-	     unsigned int charpos;
-	     for(charpos = 0; charpos < sizeof(datacluster.info.data); charpos++)
-		 datacluster.info.data[charpos] = '\0';
-	 }
+  /* A zona de dados está organizada num array de cluster de dados.
+   * A referencia a um cluster é o indico ou o numero logico do cluster no array.
+   * O número fisico  é o indice do primeiro bloco que forma.
+   * A relacao entre os dois é dada por
+   * NFClt = dzone_start + NLClt * BLOCKS_PER_CLUSTER;
+   * (SOFS14.pdf, pagina 10)
+   */
+  int stat; 
+  uint32_t clusternumber;
+  SODataClust datacluster,datacluster_previous;
+
+
+  // o primeiro datacluster está ocupado com o directorio raiz
+  for( clusternumber = 1; clusternumber < p_sb->dZoneTotal ; clusternumber++){
+    // ler o datacluster anterior
+    if ( (stat = soReadCacheCluster(clusternumber-1,&datacluster_previous)) != 0)
+      return stat;
+
+    // ler o datacluster que vamos trabalhar
+    if( (stat = soReadCacheCluster(clusternumber,&datacluster)) != 0)
+      return stat;
+
+    datacluster_previous.next = clusternumber;
+    datacluster.prev = clusternumber - 1;
+
+    if(zero){
+      unsigned int charpos;
+      for(charpos = 0; charpos < sizeof(datacluster.info.data); charpos++)
+        datacluster.info.data[charpos] = '\0';
     }
-    // neste momento o clusternumber está no ultimo datacluster
-    datacluster.next = NULL_CLUSTER;
-    
-    return 0;
+  }
+  // neste momento o clusternumber está no ultimo datacluster
+  datacluster.next = NULL_CLUSTER;
+
+  return 0;
 }
 
 /*
@@ -547,17 +558,17 @@ static int checkFSConsist (void)
 
   /* check superblock and related structures */
 
-if ((stat = soQCheckSuperBlock (p_sb)) != 0) return stat;
+  if ((stat = soQCheckSuperBlock (p_sb)) != 0) return stat;
 
   /* read the contents of the first block of the inode table to the internal storage area and get a pointer to it */
 
-if ((stat = soLoadBlockInT (0)) != 0) return stat;
-inode = soGetBlockInT ();
+  if ((stat = soLoadBlockInT (0)) != 0) return stat;
+  inode = soGetBlockInT ();
 
   /* check inode associated with root directory (inode 0) and the contents of the root directory */
 
-if ((stat = soQCheckInodeIU (p_sb, &inode[0])) != 0) return stat;
-if ((stat = soQCheckDirCont (p_sb, &inode[0])) != 0) return stat;
+  if ((stat = soQCheckInodeIU (p_sb, &inode[0])) != 0) return stat;
+  if ((stat = soQCheckDirCont (p_sb, &inode[0])) != 0) return stat;
 
   /* everything is consistent */
 
