@@ -319,7 +319,18 @@ static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itota
   /* HEADER */
   p_sb->magic = 0xFFFF;
   p_sb->version = VERSION_NUMBER;
-  strncpy((char *)p_sb->name,(char *)name,PARTITION_NAME_SIZE+1);
+  
+  /* foi a unica forma que encontrei de copiar o name sem dar conflito
+   * strncpy, strcpy e memcpy todas copiam erradamente o terminador final
+   * (creio que ficam confundidas de o argumento ser char e o professor fornecer unsigned char
+   */
+  unsigned char *pos = name;
+  while(name[pos-name] != '\0' && pos-name < PARTITION_NAME_SIZE){
+      p_sb->name[pos-name] = name[pos-name];
+      pos++;
+  }
+  p_sb->name[pos-name] = '\0';
+  
   p_sb->nTotal = ntotal;				// dado pelo argumento da funcao
   p_sb->mStat = PRU;					// o filesystem é novo, está bem desmontado
 
