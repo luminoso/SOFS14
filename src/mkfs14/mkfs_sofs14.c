@@ -391,6 +391,14 @@ static int fillInINT (SOSuperBlock *p_sb)
   inodeT.group = 0;			// grupo default e 0
   inodeT.size = 0;			// não tem tamanho
   inodeT.cluCount = 0;			// size in clusters
+
+  unsigned int i;
+  for (i = 0; i < N_DIRECT; i++)
+  {
+    inodeT.d[i] = NULL_INODE;   // inicializar todas as referencias a clusters a null
+  }
+  inodeT.i1 = NULL_INODE;   // referencias indirectas
+  inodeT.i2 = NULL_INODE;
   
   // precorrer todos os inodes da tabela
   unsigned int inodepos;
@@ -401,28 +409,22 @@ static int fillInINT (SOSuperBlock *p_sb)
     // o numero de inodes por bloco é dado por IPB (inodes per block)
     // caso verdade, vamos gravar o bloco actual e ler o bloco seguinte de inodes
     if(inodepos % IPB == 0){
-	soStoreBlockInT();
-	
-	if( (stat = soLoadBlockInT(inodepos / IPB)) != 0)
-	    return stat;
-	
-	pinodetable = soGetBlockInT();
+      if( (stat = soStoreBlockInT()) != 0)
+      return stat;
+  	
+    	if( (stat = soLoadBlockInT(inodepos / IPB)) != 0)
+    	    return stat;
+    	
+    	pinodetable = soGetBlockInT();
     }
+
+    inodeT.vD1.next = inodepos +1;  // como inode esta vazio o campo da union usado e o next que contem o indice do proximo indode na lista bi-ligada
+    inodeT.vD2.prev = inodepos -1;
 
     // atribuir um inode à posicao inodepos da tabela de inodes
     // ter em atencao que sempre que saltamos de bloco a contagem
     // da posicao de inodes leva um reset
     pinodetable[inodepos%IPB] = inodeT;
-
-    inodeT.vD1.next = inodepos +1;	// como inode esta vazio o campo da union usado e o next que contem o indice do proximo indode na lista bi-ligada
-    inodeT.vD2.prev = inodepos -1;
-    unsigned int i;
-    for (i = 0; i < N_DIRECT; i++)
-    {
-      inodeT.d[i] = NULL_INODE;		// inicializar todas as referencias a clusters a null
-    }
-    inodeT.i1 = NULL_INODE;		// referencias indirectas
-    inodeT.i2 = NULL_INODE;
   }
   // TODO falta a lógica para o ultimo inode?
   
