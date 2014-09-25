@@ -319,7 +319,7 @@ static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itota
   /* HEADER */
   p_sb->magic = 0xFFFF;
   p_sb->version = VERSION_NUMBER;
-  memcpy(p_sb->name,name,PARTITION_NAME_SIZE+1);	// TODO strncpy queixa-se que o name é UNsigned char
+  strncpy((char *)p_sb->name,(char *)name,PARTITION_NAME_SIZE+1);
   p_sb->nTotal = ntotal;				// dado pelo argumento da funcao
   p_sb->mStat = PRU;					// o filesystem é novo, está bem desmontado
 
