@@ -316,15 +316,8 @@ static void printError (int errcode, char *cmd_name)
 static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itotal, uint32_t nclusttotal,
                              unsigned char *name)
 {  
-  unsigned int i,stat;
-
-  //if((stat = soLoadSuperBlock()) != 0)
-  //  return stat;
-  //p_sb = soGetSuperBlock();
-  //nao necessario, feito na linha 172 ??
-    
   /* HEADER */
-  p_sb->magic = 0xFFFF;					// inicialmente é 0xFFFF, no futuro será MAGIC_NUMBER
+  p_sb->magic = 0xFFFF;
   p_sb->version = VERSION_NUMBER;
   memcpy(p_sb->name,name,PARTITION_NAME_SIZE+1);	// TODO strncpy queixa-se que o name é UNsigned char
   p_sb->nTotal = ntotal;				// dado pelo argumento da funcao
@@ -332,32 +325,28 @@ static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itota
 
   /* Inode table */
   p_sb->iTableStart = 1;				// o bloco 0 é o superbloco
-  p_sb->iTableSize = (itotal / IPB) + (itotal % IPB);	// numero de blocos que a tabela i ocula
+  p_sb->iTableSize = (itotal / IPB) + (itotal % IPB);	// numero de blocos que a tabela i ocupa
   p_sb->iTotal = itotal;				// o numero total de nos-i
   p_sb->iFree = itotal - 1;				// o primeiro inode está ocupado com a raiz "/"
   p_sb->iHead = 1;					// 1, pois o zero esta ocupado com o inode-raiz
   p_sb->iTail = itotal - 1;				// descontamos o inode da raiz
   
   /* DataZone */
-  p_sb->dZoneStart = 1 + itotal/IPB;			// superbloco + numerot total de blocos i + 1 posicao
-  p_sb->dZoneTotal = nclusttotal;			// o total nao inclui o bloco raiz
+  p_sb->dZoneStart = 1 + itotal/IPB;			// superbloco + o numero de clusters que os blocos i ocupam
+  p_sb->dZoneTotal = nclusttotal;			// o total de clusters
   p_sb->dZoneFree = nclusttotal - 1;			// a raiz ocupa um bloco
-  struct fCNode dzoneretriev, dzoneinsert;		// FIXME pq precisa de "struct" antes?
-  p_sb->dZoneRetriev = dzoneretriev;
   p_sb->dZoneRetriev.cacheIdx = DZONE_CACHE_SIZE;
-  // encher as caches com null cluster. nao tenho a certeza
-  // é para ver se passa na validacao do mkfs_sofs14
-  //for(i = 0; i< DZONE_CACHE_SIZE; i++)
-  //    p_sb->dZoneRetriev.cache[i] = p_sb->dZoneInsert.cache[i] = NULL_CLUSTER;
-  p_sb->dZoneInsert = dzoneinsert;
+  unsigned int i;
+  for(i = 0; i < DZONE_CACHE_SIZE; i++)
+      p_sb->dZoneRetriev.cache[i] = p_sb->dZoneInsert.cache[i] = NULL_CLUSTER;
   p_sb->dZoneInsert.cacheIdx = 0;
   p_sb->dHead = 1;					// o primeir está ocupado com o directorio raiz
   p_sb->dTail = nclusttotal - 1;			// não tenho a certeza
   
-  // nota, a variavel i ja foi inicializada
   for(i = 0; i < RESERV_AREA_SIZE; i++)
-      p_sb->reserved[i] = 0x00;
+      p_sb->reserved[i] = 0xee;				// 0xEE foi sugerido pelo professor
   
+  int stat;
   if( (stat = soStoreSuperBlock()) != 0)
     return stat;  
   
