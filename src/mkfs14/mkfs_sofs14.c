@@ -474,6 +474,21 @@ static int fillInRootDir (SOSuperBlock *p_sb)
   inode[0].i2 = NULL_INODE;
 
   // TODO agora que o nó i esta preenchido, falta encher directorio raiz na zona de dados
+  SODataClust NoRaiz;
+  SODirEntry dir;
+
+  NoRaiz.next = NULL_CLUSTER; /* na criação do directorio o DataCluster é vazio? */
+  NoRaiz.prev = NoRaiz.prev;
+  NoRaiz.stat =/*.... não sei*/
+
+  dir.nInode = 1;  /* ?..... */
+  dir.name = NULL; /* ?..... */
+
+  NoRaiz.info.data[BSLPC] = NULL_CLUSTER;
+  NoRaiz.info.ref[RPC] = 0;
+  NoRaiz.info.dir.de[DPC] = NULL;
+
+
 
   return 0;
 }
