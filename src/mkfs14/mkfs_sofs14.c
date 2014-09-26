@@ -365,85 +365,115 @@ static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itota
 
 static int fillInINT (SOSuperBlock *p_sb)
 {
-  int stat;
+  int stat, i, j;
+  uint32_t nBlk, offset;
 
-  // vamos ler o bloco 0 da tabela de inodes
-  // a funcao soLoadBlockInT já faz as contas certas para ler
-  // o bloco i na posicao certa, mas le um numero limitado de inodes por bloco
-  if( (stat = soLoadBlockInT(0)) != 0)
+  SOInode *p_itable;
+
+  /*
+  *
+  *preencher o inode 0
+  *
+  */
+  if((stat = soConvertRefInT(0, &nBlk, &offset)) != 0)
+    return stat;
+
+  if((stat = soLoadBlockInT(nBlk)) != 0)
     return stat;
 
   // se lido correctamente vamos ober o ponteiro para ele
-  SOInode *pinodetable = soGetBlockInT();// verificar se null ?	
+  p_itable = soGetBlockInT();// verificar se null ?	
 
-  inode[0].mode = INODE_DIR | INODE_WR_USR | INODE_EX_USR | INODE_RD_USR | INODE_EX_GRP | INODE_RD_GRP |
-                  INODE_EX_OTH | INODE_RD_OTH; //definir inode como directorio, operacoes..
-  inode[0].refCount = 2; //.-> ele proprio  ..-> directorio imediamtamente acima   retainCount(); //nao sei
-  inode[0].owner = getuid(); // retorna o id do utilizador 
-  inode[0].group = getgid(); // retorna o id do grupo
-  inode[0].size = sizeof(inode);
-  inode[0].cluCount = 1;  // size in clusters
-  inode[0].vD1.aTime = time(NULL); // recebe o tempo em segundos
-  inode[0].vD2.mTime = inode[0].vD1.aTime;
-  inode[0].d[0] = 0;
 
-  int i;
+  p_itable[offset].mode = INODE_DIR | INODE_RD_USR | INODE_WR_USR | 
+                          INODE_EX_USR | INODE_RD_GRP | INODE_WR_GRP |
+                          INODE_EX_GRP | INODE_RD_OTH | INODE_WR_OTH | 
+                          INODE_EX_OTH; //definir inode 0 como directorio, permissoes..
+  p_itable[offset].refCount = 2; //.-> ele proprio  ..-> directorio imediamtamente acima   retainCount(); //nao sei
+  p_itable[offset].owner = getuid(); // retorna o id do utilizador 
+  p_itable[offset].group = getgid(); // retorna o id do grupo
+  p_itable[offset].cluCount = 1;  // size in clusters
+  p_itable[offset].size = CLUSTER_SIZE - (sizeof(p_itable[offset]));
+  p_itable[offset].vD1.aTime = time(NULL); // recebe o tempo em segundos
+  p_itable[offset].vD2.mTime = p_itable[offset].vD1.aTime;
+  p_itable[offset].d[0] = 0;
   for (i = 1; i < N_DIRECT; i++)
   {
-    inode[0].d[i] = NULL_INODE; //inicializar todas as referencias a clusters a null
+    p_itable[offset].d[i] = NULL_INODE; //inicializar todas as referencias a clusters a null
   }
-  inode[0].i1 = NULL_INODE; // referencias indirectas
-  inode[0].i2 = NULL_INODE;	
+  p_itable[offset].i1 = NULL_INODE; // referencias indirectas
+  p_itable[offset].i2 = NULL_INODE;	
 
-  // criar um inode vazio, generico
-  SOInode inodeT;
-  // preencher as informacoes que sao iguais a todos
-  inodeT.mode = INODE_FREE;		// definir inode como livre
-  inodeT.refCount = 0;			// não tem referencias
-  inodeT.owner = 0;			// utilizador default e 0 
-  inodeT.group = 0;			// grupo default e 0
-  inodeT.size = 0;			// não tem tamanho
-  inodeT.cluCount = 0;			// size in clusters
-
-  unsigned int i;
-  for (i = 0; i < N_DIRECT; i++)
-  {
-    inodeT.d[i] = NULL_INODE;   // inicializar todas as referencias a clusters a null
-  }
-  inodeT.i1 = NULL_INODE;   // referencias indirectas
-  inodeT.i2 = NULL_INODE;
-
-  // precorrer todos os inodes da tabela
-  unsigned int inodepos;
-  for(inodepos = 0; inodepos < p_sb->iTotal; inodepos++)
-  {
-    // precisamos de ler outro bloco de inodes?
-    // verdade, se precorremos todos os inodes do bloco anterior
-    // o numero de inodes por bloco é dado por IPB (inodes per block)
-    // caso verdade, vamos gravar o bloco actual e ler o bloco seguinte de inodes
-    if(inodepos % IPB == 0){
-      if( (stat = soStoreBlockInT()) != 0)
-        return stat;
-
-      if( (stat = soLoadBlockInT(inodepos / IPB)) != 0)
-        return stat;
-
-      pinodetable = soGetBlockInT();
-    }
-
-    inodeT.vD1.next = inodepos +1;  // como inode esta vazio o campo da union usado e o next que contem o indice do proximo indode na lista bi-ligada
-    inodeT.vD2.prev = inodepos -1;
-
-    // atribuir um inode à posicao inodepos da tabela de inodes
-    // ter em atencao que sempre que saltamos de bloco a contagem
-    // da posicao de inodes leva um reset
-    pinodetable[inodepos%IPB] = inodeT;
-  }
-  // TODO falta a lógica para o ultimo inode?
-
-  // gravar as alteracoes que fizemos no ultimo bloco de inodes i
   if( (stat = soStoreBlockInT()) != 0)
     return stat;
+  /*
+  *
+  *preencher o inode 1
+  *
+  */
+  if((stat = soConvertRefInT(1, &nBlk, &offset)) != 0)
+    return stat;
+
+  if((stat = soLoadBlockInT(nBlk)) != 0)
+    return stat;
+
+  // se lido correctamente vamos ober o ponteiro para ele
+  p_itable = soGetBlockInT();
+
+  p_itable[offset].mode = INODE_FREE;   // definir inode como livre
+  p_itable[offset].refCount = 0;      // não tem referencias
+  p_itable[offset].owner = 0;     // utilizador default e 0 
+  p_itable[offset].group = 0;     // grupo default e 0
+  p_itable[offset].size = 0;      // não tem tamanho
+  p_itable[offset].cluCount = 0;      // size in clusters
+  for (j = 0; j < N_DIRECT; j++)
+  {
+    p_itable[offset].d[j] = NULL_INODE;   // inicializar todas as referencias a clusters a null
+  }
+  p_itable[offset].vD1.next = offset +1;  // como inode esta vazio o campo da union usado e o next que contem o indice do proximo indode na lista bi-ligada
+  p_itable[offset].vD2.prev = NULL_INODE;
+  p_itable[offset].i1 = NULL_INODE;   // referencias indirectas
+  p_itable[offset].i2 = NULL_INODE;
+  
+  if( (stat = soStoreBlockInT()) != 0)
+    return stat;
+
+  /*
+  *
+  *preencher o inode 1
+  *
+  */
+  for(i = 2; i < p_sb->iTotal; i++)
+  {
+    if((stat = soConvertRefInT(i, &nBlk, &offset)) != 0)
+      return stat;
+
+    if((stat = soLoadBlockInT(nBlk)) != 0)
+      return stat;
+
+    // se lido correctamente vamos ober o ponteiro para ele
+    p_itable = soGetBlockInT();
+
+    p_itable[offset].mode = INODE_FREE;   // definir inode como livre
+    p_itable[offset].refCount = 0;      // não tem referencias
+    p_itable[offset].owner = 0;     // utilizador default e 0 
+    p_itable[offset].group = 0;     // grupo default e 0
+    p_itable[offset].size = 0;      // não tem tamanho
+    p_itable[offset].cluCount = 0;      // size in clusters
+    for (j = 0; j < N_DIRECT; j++)
+    {
+      p_itable[offset].d[j] = NULL_INODE;   // inicializar todas as referencias a clusters a null
+    }
+    p_itable[offset].vD1.next = offset +1;  // como inode esta vazio o campo da union usado e o next que contem o indice do proximo indode na lista bi-ligada
+    p_itable[offset].vD2.prev = offset -1;
+    p_itable[offset].i1 = NULL_INODE;   // referencias indirectas
+    p_itable[offset].i2 = NULL_INODE;
+    
+    if( (stat = soStoreBlockInT()) != 0)
+    return stat;
+  }
+
+  // gravar as alteracoes que fizemos na tabela de inodes
 
   return 0;
 }
@@ -491,7 +521,7 @@ static int fillInRootDir (SOSuperBlock *p_sb)
   }
   inode[0].i1 = NULL_INODE; // referencias indirectas
   inode[0].i2 = NULL_INODE;
-
+  
   // TODO agora que o nó i esta preenchido, falta encher directorio raiz na zona de dados
   SODataClust NoRaiz;
   SODirEntry dir;
@@ -501,12 +531,12 @@ static int fillInRootDir (SOSuperBlock *p_sb)
   NoRaiz.stat =/*.... não sei*/
 
   dir.nInode = 1;  /* ?..... */
-  dir.name = NULL; /* ?..... */
+  //dir.name = NULL; /* ?..... */
 
-  NoRaiz.info.data[BSLPC] = NULL_CLUSTER;
+  //NoRaiz.info.data[BSLPC] = NULL_CLUSTER;
   NoRaiz.info.ref[RPC] = 0;
-  NoRaiz.info.dir.de[DPC] = NULL;
-
+  //NoRaiz.info.dir.de[DPC] = NULL;
+  
 
 
   return 0;
