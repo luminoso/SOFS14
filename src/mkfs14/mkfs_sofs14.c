@@ -365,6 +365,7 @@ static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itota
 
 static int fillInINT (SOSuperBlock *p_sb)
 {
+  //Função completa e a funcionar
   int stat, i, j;
   uint32_t nBlk, offset;
 
