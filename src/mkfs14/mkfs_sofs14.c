@@ -440,7 +440,7 @@ static int fillInINT (SOSuperBlock *p_sb)
 
   /*
   *
-  *preencher o inode 1
+  *preencher os restantes inodes
   *
   */
   for(i = 2; i < p_sb->iTotal - 1; i++)
