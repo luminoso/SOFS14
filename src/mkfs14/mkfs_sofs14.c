@@ -330,15 +330,15 @@ static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itota
 
   /* Inode table */
   p_sb->iTableStart = 1;				// o bloco 0 é o superbloco
-  p_sb->iTableSize = itotal;				// numero de blocos que a tabela i ocupa
-							// ((itotal / IPB) + (itotal % IPB)) ja está calculado nas linhas 144 a 151;
+  p_sb->iTableSize = (itotal / IPB) + (itotal % IPB);	// numero de blocos que a tabela i ocupa
+							// ((itotal / IPB) + (itotal % IPB)) ja está calculado nas linhas 144 a 151?
   p_sb->iTotal = itotal;				// o numero total de nos-i
   p_sb->iFree = itotal - 1;				// o primeiro inode está ocupado com a raiz "/"
   p_sb->iHead = 1;					// 1, pois o zero esta ocupado com o inode-raiz
   p_sb->iTail = itotal - 1;				// descontamos o inode da raiz
 
   /* DataZone */
-  p_sb->dZoneStart = 1 + itotal/IPB;			// superbloco + o numero de clusters que os blocos i ocupam
+  p_sb->dZoneStart = 1 + itotal/IPB + (itotal % IPB);	// superbloco + o numero de clusters que os blocos i ocupam
   p_sb->dZoneTotal = nclusttotal;			// o total de clusters
   p_sb->dZoneFree = nclusttotal - 1;			// a raiz ocupa um bloco
   p_sb->dZoneRetriev.cacheIdx = DZONE_CACHE_SIZE;
