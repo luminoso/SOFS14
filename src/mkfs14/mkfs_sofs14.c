@@ -338,7 +338,7 @@ static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itota
   p_sb->iTail = itotal - 1;				// descontamos o inode da raiz
 
   /* DataZone */
-  p_sb->dZoneStart = 1 + itotal;			// superbloco + o numero de clusters que os blocos i ocupam
+  p_sb->dZoneStart = 1 + itotal/IPB;			// superbloco + o numero de clusters que os blocos i ocupam
   p_sb->dZoneTotal = nclusttotal;			// o total de clusters
   p_sb->dZoneFree = nclusttotal - 1;			// a raiz ocupa um bloco
   p_sb->dZoneRetriev.cacheIdx = DZONE_CACHE_SIZE;
