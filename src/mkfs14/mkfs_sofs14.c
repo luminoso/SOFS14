@@ -520,57 +520,34 @@ static int fillInINT (SOSuperBlock *p_sb)
 
 static int fillInRootDir (SOSuperBlock *p_sb)
 {
-
-  /* insert your code here FUNCAO 3*/
-  int stat;
-  if( (stat = soLoadSuperBlock() ) != 0)
-    return stat;
-
-  p_sb = soGetSuperBlock(); // super bloco carregado
-
-  // carregar o inode para a memoria (inode zero), vamos ler o inode zero
-  if( (stat = soLoadBlockInT(0)) != 0)
-    return stat;
-
-  // e agora obtemos o ponteiro para o bloco carregado  
-  SOInode *inode;
-  if( (inode = soGetBlockInT()) == NULL) // tabela de inodes carregada
-    return -1;			 // FIXME: return inode da erro de cast. entao o que retornar em caso de erro?
-
-  inode[0].mode = INODE_DIR | INODE_WR_USR | INODE_EX_USR | INODE_RD_USR | INODE_EX_GRP | INODE_RD_GRP |
-    INODE_EX_OTH | INODE_RD_OTH; //definir inode como directorio, operacoes..
-  inode[0].refCount = 2; //.-> ele proprio  ..-> directorio imediamtamente acima   retainCount(); //nao sei
-  inode[0].owner = getuid(); // retorna o id do utilizador 
-  inode[0].group = getgid(); // retorna o id do grupo
-  inode[0].size = sizeof(inode);
-  inode[0].cluCount = 1;  // size in clusters
-  inode[0].vD1.aTime = time(NULL); // recebe o tempo em segundos
-  inode[0].vD2.mTime = inode[0].vD1.aTime;
-  inode[0].d[0] = 0;
-
-  int i;
-  for (i = 1; i < N_DIRECT; i++)
-  {
-    inode[0].d[i] = NULL_INODE; //inicializar todas as referencias a clusters a null
-  }
-  inode[0].i1 = NULL_INODE; // referencias indirectas
-  inode[0].i2 = NULL_INODE;
-  
-  // TODO agora que o nó i esta preenchido, falta encher directorio raiz na zona de dados
+  /* FUNCAO 3*/
   SODataClust NoRaiz;
-  SODirEntry dir;
+  
+  int i,k;
+  for(i = 0; i < DPC ; i++){
+      NoRaiz.info.de[i].nInode = NULL_INODE;
+      for(k = 0; k < MAX_NAME + 1 ; k++){
+	  NoRaiz.info.de[i].name[k] = '\0';
+      }
+  }    
+  
+  NoRaiz.prev = NULL_CLUSTER;
+  NoRaiz.next = NULL_CLUSTER;
+  NoRaiz.stat = 0;			// copiado pelo ./showblock do mkfs_sofs14_bin_64
+  
+  NoRaiz.info.de[0].name[0] = '.';
+  NoRaiz.info.de[0].name[1] = '\0';
+  NoRaiz.info.de[0].nInode = 0;
+  NoRaiz.info.de[1].name[0] = '.';
+  NoRaiz.info.de[1].name[1] = '.';
+  NoRaiz.info.de[1].name[2] = '\0';
+  NoRaiz.info.de[1].nInode = 0;
 
-  NoRaiz.next = NULL_CLUSTER; /* na criação do directorio o DataCluster é vazio? */
-  NoRaiz.prev = NoRaiz.prev;
-  NoRaiz.stat =/*.... não sei*/
-
-  dir.nInode = 1;  /* ?..... */
-  //dir.name = NULL; /* ?..... */
-
-  //NoRaiz.info.data[BSLPC] = NULL_CLUSTER;
-  NoRaiz.info.ref[RPC] = 0;
-  //NoRaiz.info.dir.de[DPC] = NULL;
-
+  // gravar o nó raiz
+  int stat;
+  if( (stat = soWriteCacheCluster(p_sb->dZoneStart,&NoRaiz)) != 0)
+      return stat;
+  
   return 0;
 }
 
@@ -595,7 +572,7 @@ static int fillInGenRep (SOSuperBlock *p_sb, int zero)
   SODataClust datacluster,datacluster_previous;
 
   // o primeiro datacluster está ocupado com o directorio raiz
-  for( clusternumber = 1; clusternumber < p_sb->dZoneTotal ; clusternumber++){
+  for( clusternumber = 2; clusternumber < p_sb->dZoneTotal ; clusternumber++){
     // ler o datacluster anterior, repare-se que se esta a usar a formula NFClt = dzone_start + NLClt * BLOCKS_PER_CLUSTER;
     if ( (stat = soReadCacheCluster( (p_sb->dZoneStart + (clusternumber-1) * BLOCKS_PER_CLUSTER) ,&datacluster_previous)) != 0)
       return stat;
@@ -619,8 +596,8 @@ static int fillInGenRep (SOSuperBlock *p_sb, int zero)
   datacluster.next = NULL_CLUSTER;
   
   // gravar o ultimo data cluster
-  if( (stat = soWriteCacheCluster( (p_sb->dZoneStart + (clusternumber) * BLOCKS_PER_CLUSTER),&datacluster)) != 0)
-      return stat;
+  //if( (stat = soWriteCacheCluster( (p_sb->dZoneStart + (clusternumber) * BLOCKS_PER_CLUSTER),&datacluster)) != 0)
+  //    return stat;
   
   return 0;
 }
