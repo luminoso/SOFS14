@@ -443,7 +443,7 @@ static int fillInINT (SOSuperBlock *p_sb)
   *preencher o inode 1
   *
   */
-  for(i = 2; i < p_sb->iTotal; i++)
+  for(i = 2; i < p_sb->iTotal - 1; i++)
   {
     if((stat = soConvertRefInT(i, &nBlk, &offset)) != 0)
       return stat;
@@ -464,14 +464,46 @@ static int fillInINT (SOSuperBlock *p_sb)
     {
       p_itable[offset].d[j] = NULL_INODE;   // inicializar todas as referencias a clusters a null
     }
-    p_itable[offset].vD1.next = offset +1;  // como inode esta vazio o campo da union usado e o next que contem o indice do proximo indode na lista bi-ligada
-    p_itable[offset].vD2.prev = offset -1;
+    p_itable[offset].vD1.next = i +1;  // como inode esta vazio o campo da union usado e o next que contem o indice do proximo indode na lista bi-ligada
+    p_itable[offset].vD2.prev = i -1;
     p_itable[offset].i1 = NULL_INODE;   // referencias indirectas
     p_itable[offset].i2 = NULL_INODE;
     
     if( (stat = soStoreBlockInT()) != 0)
     return stat;
   }
+
+  /*
+  *
+  *preencher o ultimo inode (itotal -1)
+  *
+  */
+  if((stat = soConvertRefInT(p_sb->iTotal - 1, &nBlk, &offset)) != 0)
+    return stat;
+
+  if((stat = soLoadBlockInT(nBlk)) != 0)
+    return stat;
+
+  // se lido correctamente vamos ober o ponteiro para ele
+  p_itable = soGetBlockInT();
+
+  p_itable[offset].mode = INODE_FREE;   // definir inode como livre
+  p_itable[offset].refCount = 0;      // não tem referencias
+  p_itable[offset].owner = 0;     // utilizador default e 0 
+  p_itable[offset].group = 0;     // grupo default e 0
+  p_itable[offset].size = 0;      // não tem tamanho
+  p_itable[offset].cluCount = 0;      // size in clusters
+  for (j = 0; j < N_DIRECT; j++)
+  {
+    p_itable[offset].d[j] = NULL_INODE;   // inicializar todas as referencias a clusters a null
+  }
+  p_itable[offset].vD1.next = NULL_INODE;  // como inode esta vazio o campo da union usado e o next que contem o indice do proximo indode na lista bi-ligada
+  p_itable[offset].vD2.prev = p_sb->iTotal - 2;
+  p_itable[offset].i1 = NULL_INODE;   // referencias indirectas
+  p_itable[offset].i2 = NULL_INODE;
+  
+  if( (stat = soStoreBlockInT()) != 0)
+    return stat;
 
   // gravar as alteracoes que fizemos na tabela de inodes
 
