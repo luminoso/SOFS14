@@ -567,37 +567,50 @@ static int fillInGenRep (SOSuperBlock *p_sb, int zero)
    * NFClt = dzone_start + NLClt * BLOCKS_PER_CLUSTER;
    * (SOFS14.pdf, pagina 10)
    */
-  int stat; 
-  uint32_t clusternumber;
-  SODataClust datacluster,datacluster_previous;
-
-  // o primeiro datacluster está ocupado com o directorio raiz
-  for( clusternumber = 2; clusternumber < p_sb->dZoneTotal ; clusternumber++){
-    // ler o datacluster anterior, repare-se que se esta a usar a formula NFClt = dzone_start + NLClt * BLOCKS_PER_CLUSTER;
-    if ( (stat = soReadCacheCluster( (p_sb->dZoneStart + (clusternumber-1) * BLOCKS_PER_CLUSTER) ,&datacluster_previous)) != 0)
-      return stat;
-
-    // ler o datacluster que vamos trabalhar
-    if( (stat = soReadCacheCluster((p_sb->dZoneStart + (clusternumber) * BLOCKS_PER_CLUSTER),&datacluster)) != 0)
-      return stat;
-
-    datacluster_previous.next = clusternumber;
-    datacluster.prev = clusternumber - 1;
-
-    if(zero){
-      unsigned int charpos;
-      for(charpos = 0; charpos < sizeof(datacluster.info.data); charpos++)
-        datacluster.info.data[charpos] = '\0';
-    }
-    if( (stat = soWriteCacheCluster( (p_sb->dZoneStart + (clusternumber) * BLOCKS_PER_CLUSTER),&datacluster)) != 0)
-	return stat;
+  int stat;
+  SODataClust datacluster;
+  
+  // A cluster is a group of successive blocks.
+  // soReadCacheCluster() Read a cluster of data from the buffercache.
+  unsigned int NFClt;
+  
+  unsigned int clusterpos;
+  // o cluster 0 ja está preenchido com o directorio raiz
+  
+  // primeiro datacluster
+  datacluster.prev = NULL_CLUSTER;
+  datacluster.next = p_sb->dZoneStart+1;
+  datacluster.stat = NULL_INODE;
+  NFClt = p_sb->dZoneStart + 1 * BLOCKS_PER_CLUSTER;
+  if( (stat=soWriteCacheCluster(NFClt,&datacluster)) != 0)
+	  return stat;
+  
+  // dataclusters seguintes
+  for(clusterpos = 1 ; clusterpos < p_sb->dZoneTotal; clusterpos++){
+      
+      NFClt = p_sb->dZoneStart + clusterpos * BLOCKS_PER_CLUSTER; 
+      if( (stat=soReadCacheCluster(clusterpos,&datacluster)) != 0)
+	  return stat;
+      
+      datacluster.prev = clusterpos-1;
+      datacluster.next = clusterpos+1;
+      datacluster.stat = NULL_INODE;
+      
+      if( (stat=soWriteCacheCluster(NFClt,&datacluster)) != 0)
+	  return stat;
   }
-  // neste momento o clusternumber está no ultimo datacluster
   datacluster.next = NULL_CLUSTER;
   
-  // gravar o ultimo data cluster
-  //if( (stat = soWriteCacheCluster( (p_sb->dZoneStart + (clusternumber) * BLOCKS_PER_CLUSTER),&datacluster)) != 0)
-  //    return stat;
+  if( (stat=soWriteCacheCluster(NFClt,&datacluster)) != 0)
+	  return stat;
+  
+  if(zero){
+      memset(&datacluster,'\0',CLUSTER_SIZE); // https://www.google.pt/search?q=fill+buffer+memory
+      for(clusterpos = 1; clusterpos < p_sb->dZoneTotal; clusterpos++){
+	  if( (stat = soWriteCacheCluster(clusterpos*BLOCKS_PER_CLUSTER+p_sb->dZoneStart,&datacluster)))
+	      return stat;
+      }
+  }
   
   return 0;
 }
