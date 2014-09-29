@@ -569,49 +569,30 @@ static int fillInGenRep (SOSuperBlock *p_sb, int zero)
    */
   int stat;
   SODataClust datacluster;
+  //NFCLt posicao do cluster, clustercount contador de clusters
+  uint32_t NFClt, clustercount;
   
-  // A cluster is a group of successive blocks.
-  // soReadCacheCluster() Read a cluster of data from the buffercache.
-  unsigned int NFClt;
-  
-  unsigned int clusterpos;
-  // o cluster 0 ja está preenchido com o directorio raiz
-  
-  // primeiro datacluster
-  datacluster.prev = NULL_CLUSTER;
-  datacluster.next = p_sb->dZoneStart+1;
+  // preencher informacao genérica a todos os clusters
   datacluster.stat = NULL_INODE;
-  NFClt = p_sb->dZoneStart + 1 * BLOCKS_PER_CLUSTER;
-  if( (stat=soWriteCacheCluster(NFClt,&datacluster)) != 0)
-	  return stat;
+  if(zero) memset(datacluster.info.data,0x00,BSLPC); //byte stream per data cluster 
   
-  // dataclusters seguintes
-  for(clusterpos = 1 ; clusterpos < p_sb->dZoneTotal; clusterpos++){
+  // criacao da lista bi-ligada
+  // a comecar em um, pois o 0 está com o directorio raiz
+  NFClt = p_sb->dZoneStart + BLOCKS_PER_CLUSTER;
+  for(clustercount = 1; clustercount < p_sb->dZoneTotal; clustercount++, NFClt += BLOCKS_PER_CLUSTER){
       
-      NFClt = p_sb->dZoneStart + clusterpos * BLOCKS_PER_CLUSTER; 
-      if( (stat=soReadCacheCluster(clusterpos,&datacluster)) != 0)
-	  return stat;
+      // no primeiro nó, o prev liga à terra
+      if(clustercount == 1) datacluster.prev = NULL_CLUSTER;
+      else datacluster.prev = clustercount -1;
       
-      datacluster.prev = clusterpos-1;
-      datacluster.next = clusterpos+1;
-      datacluster.stat = NULL_INODE;
+      // no ultimo nó o next liga à terra
+      if(clustercount == p_sb->dZoneTotal - 1) datacluster.next = NULL_CLUSTER;
+      else datacluster.next = clustercount +1;
       
-      if( (stat=soWriteCacheCluster(NFClt,&datacluster)) != 0)
+      // a cada nó da lista bi-ligada, gravamos o cluster
+      if( (stat = soWriteCacheCluster(NFClt,&datacluster)) != 0)
 	  return stat;
   }
-  datacluster.next = NULL_CLUSTER;
-  
-  if( (stat=soWriteCacheCluster(NFClt,&datacluster)) != 0)
-	  return stat;
-  
-  if(zero){
-      memset(&datacluster,'\0',CLUSTER_SIZE); // https://www.google.pt/search?q=fill+buffer+memory
-      for(clusterpos = 1; clusterpos < p_sb->dZoneTotal; clusterpos++){
-	  if( (stat = soWriteCacheCluster(clusterpos*BLOCKS_PER_CLUSTER+p_sb->dZoneStart,&datacluster)))
-	      return stat;
-      }
-  }
-  
   return 0;
 }
 
