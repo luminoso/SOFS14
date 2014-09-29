@@ -314,49 +314,49 @@ static void printError (int errcode, char *cmd_name)
    */
 
 static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itotal, uint32_t nclusttotal,
-                             unsigned char *name)
-{  
-  /* HEADER */
-  p_sb->magic = 0xFFFF;
-  p_sb->version = VERSION_NUMBER;
-  unsigned int l=0;
-  while(name[l]!='\0' && l < PARTITION_NAME_SIZE){
-    p_sb->name[l] = name[l];
-    l++;
-  }
-  p_sb->name[l] = '\0';           			// string terminator
-  p_sb->nTotal = ntotal;				// dado pelo argumento da funcao
-  p_sb->mStat = PRU;					// o filesystem é novo, está bem desmontado
-
-  /* Inode table */
-  p_sb->iTableStart = 1;				// o bloco 0 é o superbloco
-  p_sb->iTableSize = (itotal / IPB) + (itotal % IPB);	// numero de blocos que a tabela i ocupa
-							// ((itotal / IPB) + (itotal % IPB)) ja está calculado nas linhas 144 a 151?
-  p_sb->iTotal = itotal;				// o numero total de nos-i
-  p_sb->iFree = itotal - 1;				// o primeiro inode está ocupado com a raiz "/"
-  p_sb->iHead = 1;					// 1, pois o zero esta ocupado com o inode-raiz
-  p_sb->iTail = itotal - 1;				// descontamos o inode da raiz
-
-  /* DataZone */
-  p_sb->dZoneStart = 1 + itotal/IPB + (itotal % IPB);	// superbloco + o numero de clusters que os blocos i ocupam
-  p_sb->dZoneTotal = nclusttotal;			// o total de clusters
-  p_sb->dZoneFree = nclusttotal - 1;			// a raiz ocupa um bloco
-  p_sb->dZoneRetriev.cacheIdx = DZONE_CACHE_SIZE;
-  unsigned int i;
-  for(i = 0; i < DZONE_CACHE_SIZE; i++)
-    p_sb->dZoneRetriev.cache[i] = p_sb->dZoneInsert.cache[i] = NULL_CLUSTER;
-  p_sb->dZoneInsert.cacheIdx = 0;
-  p_sb->dHead = 1;					// o primeir está ocupado com o directorio raiz
-  p_sb->dTail = nclusttotal - 1;			// não tenho a certeza
-
-  for(i = 0; i < RESERV_AREA_SIZE; i++)
-    p_sb->reserved[i] = 0xee;				// 0xEE foi sugerido pelo professor
-
-  int stat;
-  if( (stat = soStoreSuperBlock()) != 0)
-    return stat;  
-
-  return 0;
+			     unsigned char *name)
+{
+    /* HEADER */
+    p_sb->magic = 0xFFFF;
+    p_sb->version = VERSION_NUMBER;
+    unsigned int l=0;
+    while(name[l]!='\0' && l < PARTITION_NAME_SIZE){
+	p_sb->name[l] = name[l];
+	l++;
+    }
+    p_sb->name[l] = '\0';                                 // string terminator
+    p_sb->nTotal = ntotal;                                // dado pelo argumento da funcao
+    p_sb->mStat = PRU;                                    // o filesystem é novo, está bem desmontado
+    
+    /* Inode table */
+    p_sb->iTableStart = 1;                                // o bloco 0 é o superbloco
+    p_sb->iTableSize = (itotal / IPB) + (itotal % IPB);   // numero de blocos que a tabela i ocupa
+    // ((itotal / IPB) + (itotal % IPB)) ja está calculado nas linhas 144 a 151?
+    p_sb->iTotal = itotal;                                // o numero total de nos-i
+    p_sb->iFree = itotal - 1;                             // o primeiro inode está ocupado com a raiz "/"
+    p_sb->iHead = 1;                                      // 1, pois o zero esta ocupado com o inode-raiz
+    p_sb->iTail = itotal - 1;                             // descontamos o inode da raiz
+    
+    /* DataZone */
+    p_sb->dZoneStart = 1 + itotal/IPB + (itotal % IPB);   // superbloco + o numero de clusters que os blocos i ocupam
+    p_sb->dZoneTotal = nclusttotal;                       // o total de clusters
+    p_sb->dZoneFree = nclusttotal - 1;                    // a raiz ocupa um bloco
+    p_sb->dZoneRetriev.cacheIdx = DZONE_CACHE_SIZE;
+    unsigned int i;
+    for(i = 0; i < DZONE_CACHE_SIZE; i++)
+	p_sb->dZoneRetriev.cache[i] = p_sb->dZoneInsert.cache[i] = NULL_CLUSTER;
+    p_sb->dZoneInsert.cacheIdx = 0;
+    p_sb->dHead = 1;                                      // o primeir está ocupado com o directorio raiz
+    p_sb->dTail = nclusttotal - 1;                        // não tenho a certeza
+    
+    for(i = 0; i < RESERV_AREA_SIZE; i++)
+	p_sb->reserved[i] = 0xee;                           // 0xEE foi sugerido pelo professor
+	
+	int stat;
+    if( (stat = soStoreSuperBlock()) != 0)
+	return stat;
+    
+    return 0;
 }
 
 /*
@@ -366,189 +366,166 @@ static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itota
 
 static int fillInINT (SOSuperBlock *p_sb)
 {
-  //Função completa e a funcionar
-  int stat, i, j;
-  uint32_t nBlk, offset;
-
-  SOInode *p_itable;
-
-  /*
-  *
-  *preencher o inode 0
-  *
-  */
-  if((stat = soConvertRefInT(0, &nBlk, &offset)) != 0)
-    return stat;
-
-  if((stat = soLoadBlockInT(nBlk)) != 0)
-    return stat;
-
-  // se lido correctamente vamos ober o ponteiro para ele
-  p_itable = soGetBlockInT();// verificar se null ?	
-
-
-  p_itable[offset].mode = INODE_DIR | INODE_RD_USR | INODE_WR_USR | 
-                          INODE_EX_USR | INODE_RD_GRP | INODE_WR_GRP |
-                          INODE_EX_GRP | INODE_RD_OTH | INODE_WR_OTH | 
-                          INODE_EX_OTH; //definir inode 0 como directorio, permissoes..
-  p_itable[offset].refCount = 2; //.-> ele proprio  ..-> directorio imediamtamente acima   retainCount(); //nao sei
-  p_itable[offset].owner = getuid(); // retorna o id do utilizador 
-  p_itable[offset].group = getgid(); // retorna o id do grupo
-  p_itable[offset].cluCount = 1;  // size in clusters
-  p_itable[offset].size = CLUSTER_SIZE - (sizeof(p_itable[offset]));
-  p_itable[offset].vD1.aTime = time(NULL); // recebe o tempo em segundos
-  p_itable[offset].vD2.mTime = p_itable[offset].vD1.aTime;
-  p_itable[offset].d[0] = 0;
-  for (i = 1; i < N_DIRECT; i++)
-  {
-    p_itable[offset].d[i] = NULL_INODE; //inicializar todas as referencias a clusters a null
-  }
-  p_itable[offset].i1 = NULL_INODE; // referencias indirectas
-  p_itable[offset].i2 = NULL_INODE;	
-
-  if( (stat = soStoreBlockInT()) != 0)
-    return stat;
-  /*
-  *
-  *preencher o inode 1
-  *
-  */
-  if((stat = soConvertRefInT(1, &nBlk, &offset)) != 0)
-    return stat;
-
-  if((stat = soLoadBlockInT(nBlk)) != 0)
-    return stat;
-
-  // se lido correctamente vamos ober o ponteiro para ele
-  p_itable = soGetBlockInT();
-
-  p_itable[offset].mode = INODE_FREE;   // definir inode como livre
-  p_itable[offset].refCount = 0;      // não tem referencias
-  p_itable[offset].owner = 0;     // utilizador default e 0 
-  p_itable[offset].group = 0;     // grupo default e 0
-  p_itable[offset].size = 0;      // não tem tamanho
-  p_itable[offset].cluCount = 0;      // size in clusters
-  for (j = 0; j < N_DIRECT; j++)
-  {
-    p_itable[offset].d[j] = NULL_INODE;   // inicializar todas as referencias a clusters a null
-  }
-  p_itable[offset].vD1.next = offset +1;  // como inode esta vazio o campo da union usado e o next que contem o indice do proximo indode na lista bi-ligada
-  p_itable[offset].vD2.prev = NULL_INODE;
-  p_itable[offset].i1 = NULL_INODE;   // referencias indirectas
-  p_itable[offset].i2 = NULL_INODE;
-  
-  if( (stat = soStoreBlockInT()) != 0)
-    return stat;
-
-  /*
-  *
-  *preencher os restantes inodes
-  *
-  */
-  for(i = 2; i < p_sb->iTotal - 1; i++)
-  {
-    if((stat = soConvertRefInT(i, &nBlk, &offset)) != 0)
-      return stat;
-
+    int stat, i, j;
+    uint32_t nBlk, offset;
+    SOInode *p_itable;
+    
+    // preencher o inode 0
+    if((stat = soConvertRefInT(0, &nBlk, &offset)) != 0)
+	return stat;
+    
     if((stat = soLoadBlockInT(nBlk)) != 0)
-      return stat;
-
+	return stat;
+    
     // se lido correctamente vamos ober o ponteiro para ele
-    p_itable = soGetBlockInT();
-
-    p_itable[offset].mode = INODE_FREE;   // definir inode como livre
-    p_itable[offset].refCount = 0;      // não tem referencias
-    p_itable[offset].owner = 0;     // utilizador default e 0 
-    p_itable[offset].group = 0;     // grupo default e 0
-    p_itable[offset].size = 0;      // não tem tamanho
-    p_itable[offset].cluCount = 0;      // size in clusters
-    for (j = 0; j < N_DIRECT; j++)
+    p_itable = soGetBlockInT();// verificar se null ?
+    
+    p_itable[offset].mode = INODE_DIR | INODE_RD_USR | INODE_WR_USR | 
+    INODE_EX_USR | INODE_RD_GRP | INODE_WR_GRP |
+    INODE_EX_GRP | INODE_RD_OTH | INODE_WR_OTH | 
+    INODE_EX_OTH;                 //definir inode 0 como directorio, permissoes..
+    p_itable[offset].refCount = 2;                        //.-> ele proprio  ..-> directorio imediamtamente acima   retainCount(); //nao sei
+    p_itable[offset].owner = getuid();                    // retorna o id do utilizador 
+    p_itable[offset].group = getgid();                    // retorna o id do grupo
+    p_itable[offset].cluCount = 1;                        // size in clusters
+    p_itable[offset].size = CLUSTER_SIZE - (sizeof(p_itable[offset]));
+    p_itable[offset].vD1.aTime = time(NULL);              // recebe o tempo em segundos
+    p_itable[offset].vD2.mTime = p_itable[offset].vD1.aTime;
+    p_itable[offset].d[0] = 0;
+    for (i = 1; i < N_DIRECT; i++)
     {
-      p_itable[offset].d[j] = NULL_INODE;   // inicializar todas as referencias a clusters a null
+	p_itable[offset].d[i] = NULL_INODE;               //inicializar todas as referencias a clusters a null
     }
-    p_itable[offset].vD1.next = i +1;  // como inode esta vazio o campo da union usado e o next que contem o indice do proximo indode na lista bi-ligada
-    p_itable[offset].vD2.prev = i -1;
-    p_itable[offset].i1 = NULL_INODE;   // referencias indirectas
+    p_itable[offset].i1 = NULL_INODE;                     // referencias indirectas
     p_itable[offset].i2 = NULL_INODE;
     
     if( (stat = soStoreBlockInT()) != 0)
-    return stat;
-  }
-
-  /*
-  *
-  *preencher o ultimo inode (itotal -1)
-  *
-  */
-  if((stat = soConvertRefInT(p_sb->iTotal - 1, &nBlk, &offset)) != 0)
-    return stat;
-
-  if((stat = soLoadBlockInT(nBlk)) != 0)
-    return stat;
-
-  // se lido correctamente vamos ober o ponteiro para ele
-  p_itable = soGetBlockInT();
-
-  p_itable[offset].mode = INODE_FREE;   // definir inode como livre
-  p_itable[offset].refCount = 0;      // não tem referencias
-  p_itable[offset].owner = 0;     // utilizador default e 0 
-  p_itable[offset].group = 0;     // grupo default e 0
-  p_itable[offset].size = 0;      // não tem tamanho
-  p_itable[offset].cluCount = 0;      // size in clusters
-  for (j = 0; j < N_DIRECT; j++)
-  {
-    p_itable[offset].d[j] = NULL_INODE;   // inicializar todas as referencias a clusters a null
-  }
-  p_itable[offset].vD1.next = NULL_INODE;  // como inode esta vazio o campo da union usado e o next que contem o indice do proximo indode na lista bi-ligada
-  p_itable[offset].vD2.prev = p_sb->iTotal - 2;
-  p_itable[offset].i1 = NULL_INODE;   // referencias indirectas
-  p_itable[offset].i2 = NULL_INODE;
-  
-  if( (stat = soStoreBlockInT()) != 0)
-    return stat;
-
-  // gravar as alteracoes que fizemos na tabela de inodes
-
-  return 0;
+	return stat;
+    
+    // preencher o inode 1
+    if((stat = soConvertRefInT(1, &nBlk, &offset)) != 0)
+	return stat;
+    
+    if((stat = soLoadBlockInT(nBlk)) != 0)
+	return stat;
+    
+    p_itable = soGetBlockInT();
+    
+    p_itable[offset].mode = INODE_FREE;                   // definir inode como livre
+    p_itable[offset].refCount = 0;                        // não tem referencias
+    p_itable[offset].owner = 0;                           // utilizador default e 0 
+    p_itable[offset].group = 0;                           // grupo default e 0
+    p_itable[offset].size = 0;                            // não tem tamanho
+    p_itable[offset].cluCount = 0;                        // size in clusters
+    for (j = 0; j < N_DIRECT; j++)
+    {
+	p_itable[offset].d[j] = NULL_INODE;               // inicializar todas as referencias a clusters a null
+    }
+    p_itable[offset].vD1.next = offset +1;                // como inode esta vazio o campo da union usado e o next que contem o indice do proximo indode na lista bi-ligada
+    p_itable[offset].vD2.prev = NULL_INODE;
+    p_itable[offset].i1 = NULL_INODE;                     // referencias indirectas
+    p_itable[offset].i2 = NULL_INODE;
+    
+    if( (stat = soStoreBlockInT()) != 0)
+	return stat;
+    
+    // preencher os restantes inodes
+    for(i = 2; i < p_sb->iTotal - 1; i++)
+    {
+	if((stat = soConvertRefInT(i, &nBlk, &offset)) != 0)
+	    return stat;
+	
+	if((stat = soLoadBlockInT(nBlk)) != 0)
+	    return stat;
+	
+	p_itable = soGetBlockInT();
+	
+	p_itable[offset].mode = INODE_FREE;                 // definir inode como livre
+	p_itable[offset].refCount = 0;                      // não tem referencias
+	p_itable[offset].owner = 0;                         // utilizador default e 0 
+	p_itable[offset].group = 0;                         // grupo default e 0
+	p_itable[offset].size = 0;                          // não tem tamanho
+	p_itable[offset].cluCount = 0;                      // size in clusters
+	for (j = 0; j < N_DIRECT; j++)
+	{
+	    p_itable[offset].d[j] = NULL_INODE;             // inicializar todas as referencias a clusters a null
+	}
+	p_itable[offset].vD1.next = i +1;                   // como inode esta vazio o campo da union usado e o next que contem o indice do proximo indode na lista bi-ligada
+	p_itable[offset].vD2.prev = i -1;
+	p_itable[offset].i1 = NULL_INODE;                   // referencias indirectas
+	p_itable[offset].i2 = NULL_INODE;
+	
+	if( (stat = soStoreBlockInT()) != 0)
+	    return stat;
+    }
+    
+    // preencher o ultimo inode (itotal -1)
+    if((stat = soConvertRefInT(p_sb->iTotal - 1, &nBlk, &offset)) != 0)
+	return stat;
+    
+    if((stat = soLoadBlockInT(nBlk)) != 0)
+	return stat;
+    
+    p_itable = soGetBlockInT();
+    
+    p_itable[offset].mode = INODE_FREE;                   // definir inode como livre
+    p_itable[offset].refCount = 0;                        // não tem referencias
+    p_itable[offset].owner = 0;                           // utilizador default e 0 
+    p_itable[offset].group = 0;                           // grupo default e 0
+    p_itable[offset].size = 0;                            // não tem tamanho
+    p_itable[offset].cluCount = 0;                        // size in clusters
+    for (j = 0; j < N_DIRECT; j++)
+    {
+	p_itable[offset].d[j] = NULL_INODE;               // inicializar todas as referencias a clusters a null
+    }
+    p_itable[offset].vD1.next = NULL_INODE;               // como inode esta vazio o campo da union usado e o next que contem o indice do proximo indode na lista bi-ligada
+    p_itable[offset].vD2.prev = p_sb->iTotal - 2;
+    p_itable[offset].i1 = NULL_INODE;                     // referencias indirectas
+    p_itable[offset].i2 = NULL_INODE;
+    
+    // gravar as alteracoes que fizemos na tabela de inodes
+    if( (stat = soStoreBlockInT()) != 0)
+	return stat;
+    
+    return 0;
 }
 
 /*
  * filling in the contents of the root directory:
- the first 2 entries are filled in with "." and ".." references
- the other entries are empty
+ * the first 2 entries are filled in with "." and ".." references
+ * the other entries are empty
  */
 
 static int fillInRootDir (SOSuperBlock *p_sb)
 {
-  /* FUNCAO 3*/
-  SODataClust NoRaiz;
-  
-  int i,k;
-  for(i = 0; i < DPC ; i++){
-      NoRaiz.info.de[i].nInode = NULL_INODE;
-      for(k = 0; k < MAX_NAME + 1 ; k++){
-	  NoRaiz.info.de[i].name[k] = '\0';
-      }
-  }    
-  
-  NoRaiz.prev = NULL_CLUSTER;
-  NoRaiz.next = NULL_CLUSTER;
-  NoRaiz.stat = 0;			// copiado pelo ./showblock do mkfs_sofs14_bin_64
-  
-  NoRaiz.info.de[0].name[0] = '.';
-  NoRaiz.info.de[0].name[1] = '\0';
-  NoRaiz.info.de[0].nInode = 0;
-  NoRaiz.info.de[1].name[0] = '.';
-  NoRaiz.info.de[1].name[1] = '.';
-  NoRaiz.info.de[1].name[2] = '\0';
-  NoRaiz.info.de[1].nInode = 0;
-
-  // gravar o nó raiz
-  int stat;
-  if( (stat = soWriteCacheCluster(p_sb->dZoneStart,&NoRaiz)) != 0)
-      return stat;
-  
-  return 0;
+    SODataClust NoRaiz;
+    
+    int i,k;
+    for(i = 0; i < DPC ; i++){
+	NoRaiz.info.de[i].nInode = NULL_INODE;
+	for(k = 0; k < MAX_NAME + 1 ; k++){
+	    NoRaiz.info.de[i].name[k] = '\0';
+	}
+    }
+    
+    NoRaiz.prev = NULL_CLUSTER;
+    NoRaiz.next = NULL_CLUSTER;
+    NoRaiz.stat = 0;                                      // copiado pelo ./showblock do mkfs_sofs14_bin_64
+    
+    NoRaiz.info.de[0].name[0] = '.';
+    NoRaiz.info.de[0].name[1] = '\0';
+    NoRaiz.info.de[0].nInode = 0;                         // o inode do directorio raiz
+    NoRaiz.info.de[1].name[0] = '.';
+    NoRaiz.info.de[1].name[1] = '.';
+    NoRaiz.info.de[1].name[2] = '\0';
+    NoRaiz.info.de[1].nInode = 0;
+    
+    // gravar o nó raiz
+    int stat;
+    if( (stat = soWriteCacheCluster(p_sb->dZoneStart,&NoRaiz)) != 0)
+	return stat;
+    
+    return 0;
 }
 
 /*
@@ -560,40 +537,40 @@ static int fillInRootDir (SOSuperBlock *p_sb)
 
 static int fillInGenRep (SOSuperBlock *p_sb, int zero)
 {
-  /* A zona de dados está organizada num array de cluster de dados.
-   * A referencia a um cluster é o indico ou o numero logico do cluster no array.
-   * O número fisico  é o indice do primeiro bloco que forma.
-   * A relacao entre os dois é dada por
-   * NFClt = dzone_start + NLClt * BLOCKS_PER_CLUSTER;
-   * (SOFS14.pdf, pagina 10)
-   */
-  int stat;
-  SODataClust datacluster;
-  //NFCLt posicao do cluster, clustercount contador de clusters
-  uint32_t NFClt, clustercount;
-  
-  // preencher informacao genérica a todos os clusters
-  datacluster.stat = NULL_INODE;
-  if(zero) memset(datacluster.info.data,0x00,BSLPC); //byte stream per data cluster 
-  
-  // criacao da lista bi-ligada
-  // a comecar em um, pois o 0 está com o directorio raiz
-  NFClt = p_sb->dZoneStart + BLOCKS_PER_CLUSTER;
-  for(clustercount = 1; clustercount < p_sb->dZoneTotal; clustercount++, NFClt += BLOCKS_PER_CLUSTER){
-      
-      // no primeiro nó, o prev liga à terra
-      if(clustercount == 1) datacluster.prev = NULL_CLUSTER;
-      else datacluster.prev = clustercount -1;
-      
-      // no ultimo nó o next liga à terra
-      if(clustercount == p_sb->dZoneTotal - 1) datacluster.next = NULL_CLUSTER;
-      else datacluster.next = clustercount +1;
-      
-      // a cada nó da lista bi-ligada, gravamos o cluster
-      if( (stat = soWriteCacheCluster(NFClt,&datacluster)) != 0)
-	  return stat;
-  }
-  return 0;
+    /* A zona de dados está organizada num array de cluster de dados.
+     * A referencia a um cluster é o indico ou o numero logico do cluster no array.
+     * O número fisico  é o indice do primeiro bloco que forma.
+     * A relacao entre os dois é dada por
+     * NFClt = dzone_start + NLClt * BLOCKS_PER_CLUSTER;
+     * (SOFS14.pdf, pagina 10)
+     */
+    int stat;
+    SODataClust datacluster;
+    //NFCLt posicao do cluster, clustercount contador de clusters
+    uint32_t NFClt, clustercount;
+    
+    // preencher informacao genérica a todos os clusters
+    datacluster.stat = NULL_INODE;
+    if(zero) memset(datacluster.info.data,0x00,BSLPC);    // byte stream per data cluster 
+    
+    // criacao da lista bi-ligada
+    // a comecar em um, pois o 0 está com o directorio raiz
+    NFClt = p_sb->dZoneStart + BLOCKS_PER_CLUSTER;
+    for(clustercount = 1; clustercount < p_sb->dZoneTotal; clustercount++, NFClt += BLOCKS_PER_CLUSTER){
+	
+	// no primeiro nó, o prev liga à terra
+	if(clustercount == 1) datacluster.prev = NULL_CLUSTER;
+	else datacluster.prev = clustercount -1;
+	
+	// no ultimo nó o next liga à terra
+	if(clustercount == p_sb->dZoneTotal - 1) datacluster.next = NULL_CLUSTER;
+	else datacluster.next = clustercount +1;
+	
+	// a cada nó da lista bi-ligada, gravamos o cluster
+	if( (stat = soWriteCacheCluster(NFClt,&datacluster)) != 0)
+	    return stat;
+    }
+    return 0;
 }
 
 /*
