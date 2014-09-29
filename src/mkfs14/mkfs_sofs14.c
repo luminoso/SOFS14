@@ -513,11 +513,9 @@ static int fillInRootDir (SOSuperBlock *p_sb)
     NoRaiz.stat = 0;                                      // copiado pelo ./showblock do mkfs_sofs14_bin_64
     
     NoRaiz.info.de[0].name[0] = '.';
-    NoRaiz.info.de[0].name[1] = '\0';
     NoRaiz.info.de[0].nInode = 0;                         // o inode do directorio raiz
     NoRaiz.info.de[1].name[0] = '.';
     NoRaiz.info.de[1].name[1] = '.';
-    NoRaiz.info.de[1].name[2] = '\0';
     NoRaiz.info.de[1].nInode = 0;
     
     // gravar o nó raiz
