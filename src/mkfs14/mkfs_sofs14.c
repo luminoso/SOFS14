@@ -369,6 +369,7 @@ static int fillInINT (SOSuperBlock *p_sb)
     int stat, i, j;
     uint32_t nBlk, offset;
     SOInode *p_itable;
+    SODataClust dc;
     
     // preencher o inode 0
     if((stat = soConvertRefInT(0, &nBlk, &offset)) != 0)
@@ -388,7 +389,7 @@ static int fillInINT (SOSuperBlock *p_sb)
     p_itable[offset].owner = getuid();                    // retorna o id do utilizador 
     p_itable[offset].group = getgid();                    // retorna o id do grupo
     p_itable[offset].cluCount = 1;                        // size in clusters
-    p_itable[offset].size = CLUSTER_SIZE - (sizeof(p_itable[offset]));
+    p_itable[offset].size = sizeof(dc.info.de);
     p_itable[offset].vD1.aTime = time(NULL);              // recebe o tempo em segundos
     p_itable[offset].vD2.mTime = p_itable[offset].vD1.aTime;
     p_itable[offset].d[0] = 0;
