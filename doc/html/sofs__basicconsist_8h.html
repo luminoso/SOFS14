@@ -162,15 +162,19 @@ Macros</h2></td></tr>
 #define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="sofs__basicconsist_8h.html#aa1c3921975c7b46d27e79bce2ea0e3f5">ERELPATH</a>&#160;&#160;&#160;529</td></tr>
 <tr class="memdesc:aa1c3921975c7b46d27e79bce2ea0e3f5"><td class="mdescLeft">&#160;</td><td class="mdescRight">path is relative and it is not a symbolic link <br/></td></tr>
 <tr class="separator:aa1c3921975c7b46d27e79bce2ea0e3f5"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a32786451de43fd94e0a4a28d5f2483a7"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a32786451de43fd94e0a4a28d5f2483a7"></a>
+#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="sofs__basicconsist_8h.html#a32786451de43fd94e0a4a28d5f2483a7">EDCNALINVAL</a>&#160;&#160;&#160;530</td></tr>
+<tr class="memdesc:a32786451de43fd94e0a4a28d5f2483a7"><td class="mdescLeft">&#160;</td><td class="mdescRight">data cluster is not allocated <br/></td></tr>
+<tr class="separator:a32786451de43fd94e0a4a28d5f2483a7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="func-members"></a>
 Functions</h2></td></tr>
 <tr class="memitem:a6a248690bcf9bac661e239e3ae792899"><td class="memItemLeft" align="right" valign="top">uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="sofs__basicconsist_8h.html#a6a248690bcf9bac661e239e3ae792899">soGetMagicNumber</a> (<a class="el" href="sofs__superblock_8h.html#ab3d7af66934f6eb4e2f28e2918b88133">SOSuperBlock</a> *p_sb)</td></tr>
 <tr class="memdesc:a6a248690bcf9bac661e239e3ae792899"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get file system magic number.  <a href="#a6a248690bcf9bac661e239e3ae792899">More...</a><br/></td></tr>
 <tr class="separator:a6a248690bcf9bac661e239e3ae792899"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a9d04fd3bf59ccc503f0bc7c1e2e9c955"><td class="memItemLeft" align="right" valign="top">const char *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="sofs__basicconsist_8h.html#a9d04fd3bf59ccc503f0bc7c1e2e9c955">soGetErrorMessage</a> (<a class="el" href="sofs__superblock_8h.html#ab3d7af66934f6eb4e2f28e2918b88133">SOSuperBlock</a> *p_sb, uint32_t code)</td></tr>
-<tr class="memdesc:a9d04fd3bf59ccc503f0bc7c1e2e9c955"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get error message.  <a href="#a9d04fd3bf59ccc503f0bc7c1e2e9c955">More...</a><br/></td></tr>
-<tr class="separator:a9d04fd3bf59ccc503f0bc7c1e2e9c955"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4dc678627ada5ba9e1be65877b1f8430"><td class="memItemLeft" align="right" valign="top">const char *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="sofs__basicconsist_8h.html#a4dc678627ada5ba9e1be65877b1f8430">soGetErrorMessage</a> (<a class="el" href="sofs__superblock_8h.html#ab3d7af66934f6eb4e2f28e2918b88133">SOSuperBlock</a> *p_sb, int code)</td></tr>
+<tr class="memdesc:a4dc678627ada5ba9e1be65877b1f8430"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get error message.  <a href="#a4dc678627ada5ba9e1be65877b1f8430">More...</a><br/></td></tr>
+<tr class="separator:a4dc678627ada5ba9e1be65877b1f8430"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7cf6e075201952b4fab9b36990a856a1"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="sofs__basicconsist_8h.html#a7cf6e075201952b4fab9b36990a856a1">soQCheckSuperBlock</a> (<a class="el" href="sofs__superblock_8h.html#ab3d7af66934f6eb4e2f28e2918b88133">SOSuperBlock</a> *p_sb)</td></tr>
 <tr class="memdesc:a7cf6e075201952b4fab9b36990a856a1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Quick check of the superblock metadata.  <a href="#a7cf6e075201952b4fab9b36990a856a1">More...</a><br/></td></tr>
 <tr class="separator:a7cf6e075201952b4fab9b36990a856a1"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -221,7 +225,7 @@ Functions</h2></td></tr>
 <dl class="section author"><dt>Author</dt><dd>António Rui Borges - September 2010 / September 2011, Sepetember 2014</dd></dl>
 <dl class="section remark"><dt>Remarks</dt><dd>In case an error occurs, all functions return a negative value which is the symmetric of the system error or the local error that better represents the error cause. Local errors are out of the range of the system errors and their codes are listed bellow. </dd></dl>
 </div><h2 class="groupheader">Function Documentation</h2>
-<a class="anchor" id="a9d04fd3bf59ccc503f0bc7c1e2e9c955"></a>
+<a class="anchor" id="a4dc678627ada5ba9e1be65877b1f8430"></a>
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
@@ -234,7 +238,7 @@ Functions</h2></td></tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramtype">int&#160;</td>
           <td class="paramname"><em>code</em>&#160;</td>
         </tr>
         <tr>
