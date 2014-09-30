@@ -97,7 +97,7 @@ int soAllocInode (uint32_t type, uint32_t* p_nInode)
       return -ENOSPC;
 
    /*verifica se a lista de inodes é inconsistente */
-   if( (stat = soQCheckFInode(p_nInode) ) != 0)
+   if( (stat = soQCheckFInode(&p_itable[offset]) ) != 0)
       return stat; /*-EFININVAL;*/
 
    /* necessário verificar insconsistencia no estado sujo ? */
