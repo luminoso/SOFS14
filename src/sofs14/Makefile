@@ -1,7 +1,9 @@
 CC = gcc
 CFLAGS = -Wall -I "../debugging" -I "../rawIO14"
-IFUNCS1 = sofs_ifuncs_1/soAllocInode.o sofs_ifuncs_1/soFreeInode.o sofs_ifuncs_1/soAllocDataCluster.o \
-	  sofs_ifuncs_1/soFreeDataCluster.o
+#IFUNCS1 = sofs_ifuncs_1/soAllocInode.o sofs_ifuncs_1/soFreeInode.o sofs_ifuncs_1/soAllocDataCluster.o \
+#	  sofs_ifuncs_1/soFreeDataCluster.o
+
+IFUNCS1 = sofs_ifuncs_1/soAllocInode.o
 #IFUNCS2 = sofs_ifuncs_2/soReadInode.o sofs_ifuncs_2/soWriteInode.o sofs_ifuncs_2/soCleanInode.o \
 #	  sofs_ifuncs_2/soAccessGranted.o
 #IFUNCS3 = sofs_ifuncs_3/soReadFileCluster.o sofs_ifuncs_3/soWriteFileCluster.o sofs_ifuncs_3/soHandleFileCluster.o \

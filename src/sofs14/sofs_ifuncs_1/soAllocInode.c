@@ -61,6 +61,70 @@ int soAllocInode (uint32_t type, uint32_t* p_nInode)
 {
    soColorProbe (611, "07;31", "soAllocInode (%"PRIu32", %p)\n", type, p_nInode);
 
+   int stat;
+   uint32_t nBlk, offset;
+
+   SOSuperBlock *p_sb;
+
+   /* carregar super bloco */
+   if((stat = soLoadSuperBlock()) != 0)
+      return stat;
+
+   p_sb = soGetSuperBlock(); /* ler super bloco */
+
+
+   /*converter inode no 1º arg. no seu numero de bloco e seu offset*/
+   if((stat = soConvertRefInT(p_sb->iHead, &nBlk, &offset)) != 0)
+   	return stat;
+   		
+   	/*Carrega o conteudo do um bloco especifico da tabela de inodesLoad the contents of a specific block of the table of inodes into internal storage*/
+   if((stat = soLoadBlockInT(nBlk)) != 0)
+   	return stat;
+
+   	// se lido correctamente vamos obter o ponteiro para ele
+   SOInode *p_itable; // ponteiro para o nó i 
+   p_itable = soGetBlockInT();
+
+
+
+
+   /*verifica se o type é ilegal ou se o ponteiro para inode number é nulo*/
+   if( ( (type & INODE_TYPE_MASK) == 0) || p_nInode == NULL)
+      return -EINVAL;
+
+   /*verifica se a lista de nos i livres está vazia*/
+   if(p_sb->iFree == 0)
+      return -ENOSPC;
+
+   /*verifica se a lista de inodes é inconsistente */
+   if( (stat = soQCheckFInode(p_nInode) ) != 0)
+      return stat; /*-EFININVAL;*/
+
+   /* necessário verificar insconsistencia no estado sujo ? */
+
+
+   *p_nInode = p_sb->iHead; /* 1º elemento*/
+
+   /* se tiver apenas 1 elemento */
+   if(p_sb->iFree == 1)
+      p_sb->iHead = p_sb->iTail = NULL_INODE;
+
+   /* se tiver 2 ou mais elementos */
+   else
+   {
+      p_sb->iHead = p_itable[offset].vD1.next; 
+      p_itable[offset].vD2.prev = NULL_INODE;  /* aponta para a terra */
+   }
+
+   p_sb->iFree -=1; /* decrementa nº de Inodes livres*/
+
+   if( (stat = soStoreSuperBlock()) != 0) /* gravar o Super Bloco */
+      return stat;
+   
+   if((stat = soStoreBlockInT()) != 0) /* gravar tabela de nosI */
+      return stat;
+
+
   /* insert your code here */
 
    return 0;
