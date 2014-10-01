@@ -319,11 +319,14 @@ static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itota
     /* HEADER */
     p_sb->magic = 0xFFFF;
     p_sb->version = VERSION_NUMBER;
+    
+    
     unsigned int l=0;
     while(name[l]!='\0' && l < PARTITION_NAME_SIZE){
 	p_sb->name[l] = name[l];
 	l++;
     }
+    
     p_sb->name[l] = '\0';                                 // string terminator
     p_sb->nTotal = ntotal;                                // dado pelo argumento da funcao
     p_sb->mStat = PRU;                                    // o filesystem é novo, está bem desmontado
@@ -342,17 +345,21 @@ static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itota
     p_sb->dZoneTotal = nclusttotal;                       // o total de clusters
     p_sb->dZoneFree = nclusttotal - 1;                    // a raiz ocupa um bloco
     p_sb->dZoneRetriev.cacheIdx = DZONE_CACHE_SIZE;
+    
     unsigned int i;
+    
     for(i = 0; i < DZONE_CACHE_SIZE; i++)
 	p_sb->dZoneRetriev.cache[i] = p_sb->dZoneInsert.cache[i] = NULL_CLUSTER;
+    
     p_sb->dZoneInsert.cacheIdx = 0;
     p_sb->dHead = 1;                                      // o primeir está ocupado com o directorio raiz
     p_sb->dTail = nclusttotal - 1;                        // não tenho a certeza
     
     for(i = 0; i < RESERV_AREA_SIZE; i++)
-	p_sb->reserved[i] = 0xee;                           // 0xEE foi sugerido pelo professor
+	p_sb->reserved[i] = 0xee;                         // 0xEE foi sugerido pelo professor
 	
-	int stat;
+    int stat;
+    
     if( (stat = soStoreSuperBlock()) != 0)
 	return stat;
     
@@ -366,10 +373,10 @@ static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itota
 
 static int fillInINT (SOSuperBlock *p_sb)
 {
-    int stat, i, j;
-    uint32_t nBlk, offset;
-    SOInode *p_itable;
-    SODataClust dc;
+    int stat, i, j;                                       // i precorrer todos os inodes, j referencias indirectas
+    uint32_t nBlk, offset;                                // nBlk bloco do nó i, offset do inode em relacao ao bloco
+    SOInode *p_itable;                                    // ponteiro para a tabela de inodes
+    SODataClust dc;                                       // datacluster para calcular o size de um dir entry
     
     // preencher o inode 0
     if((stat = soConvertRefInT(0, &nBlk, &offset)) != 0)
@@ -499,7 +506,7 @@ static int fillInINT (SOSuperBlock *p_sb)
 
 static int fillInRootDir (SOSuperBlock *p_sb)
 {
-    SODataClust NoRaiz;
+    SODataClust NoRaiz;                                   // criacao do nó raiz que vamos escrever
     
     int i,k;
     for(i = 0; i < DPC ; i++){
@@ -544,9 +551,8 @@ static int fillInGenRep (SOSuperBlock *p_sb, int zero)
      * (SOFS14.pdf, pagina 10)
      */
     int stat;
-    SODataClust datacluster;
-    //NFCLt posicao do cluster, clustercount contador de clusters
-    uint32_t NFClt, clustercount;
+    SODataClust datacluster;                              // datacluster para o qual vamos escrever informacoes
+    uint32_t NFClt, clustercount;                         // NFCLt posicao do cluster, clustercount contador de clusters
     
     // preencher informacao genérica a todos os clusters
     datacluster.stat = NULL_INODE;
