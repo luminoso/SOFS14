@@ -1,7 +1,7 @@
 /**
  *  \file soAllocDataCluster.c (implementation file)
  *
- *  \author
+ *  \author Bruno Silva - 68535 
  */
 
 #include <stdio.h>
@@ -62,9 +62,61 @@ int soDeplete (SOSuperBlock *p_sb);
 
 int soAllocDataCluster (uint32_t nInode, uint32_t *p_nClust)
 {
-   soColorProbe (613, "07;33", "soAllocDataCluster (%"PRIu32", %p)\n", nInode, p_nClust);
+	soColorProbe (613, "07;33", "soAllocDataCluster (%"PRIu32", %p)\n", nInode, p_nClust);
 
-  /* insert your code here */
+	int stat;
+	uint32_t nBlock, offset, nClust; //variaveis para localizar o inode pretendido, e o cluster
+	SOSuperBlock *p_sb; //ponteiro para o superbloco
+	SOInode *p_inode; // ponteiro para o inode que vai ser reservado o cluster
+  SODataClust *cluster; //ponteiro para o cluster que vai ser reservado
+
+	if((stat = soLoadSuperBlock()) != 0)
+		return stat;
+
+	p_sb = soGetSuperBlock();
+
+	if(nInode <= 0  || nInode > p_sb->iTotal -1 || p_nClust == NULL)
+		return -EINVAL;
+
+  if(p_sb->dZoneFree == 0)
+  	return -ENOSPC;
+
+  if((stat = soConvertRefInT(nInode, &nBlock, &offset)) != 0)
+  	return stat;
+  	
+	if((stat = soLoadBlockInT(nBlock)) != 0)
+		return stat;
+
+	p_inode = soGetBlockInT();
+
+	if((stat = soQCheckInodeIU(p_sb, &p_inode[offset])) != 0)
+		return stat;
+
+	//Falta testar EDCNOTIL e EWGINODENB
+	//acho que so é feito no fim
+
+	if(p_sb->dZoneRetriev.cacheIdx == DZONE_CACHE_SIZE)
+		soReplenish(p_sb);
+
+  //nclust = logical number of cluster
+	nClust = p_sb->dZoneRetriev.cache[p_sb->dZoneRetriev.cacheIdx]; // passar o numero do proximo cluster livre para nClust
+	p_sb->dZoneRetriev.cache[p_sb->dZoneRetriev.cacheIdx] = NULL_CLUSTER; //esse cluster já nao vai estar disponivel, por isso NULL_CLUSTER
+	p_sb->dZoneRetriev.cacheIdx += 1;
+	p_sb->dZoneFree -= 1;
+
+
+	//ir buscar o cluster nClust. nclust needs to be physical number
+  //relação entre numero fisico e numero logico
+  //NFClt = dzone_start + NLClt * BLOCKS_PER_CLUSTER;
+  if((stat = soLoadDirRefClust(p_sb->dZoneStart + (nClust * BLOCKS_PER_CLUSTER))) != 0)
+    return stat;
+
+  cluster = soGetDirRefClust();
+
+  cluster->prev = cluster->next = NULL_CLUSTER;
+  cluster->stat = nInode;
+  *p_nClust = nClust;
+  
 
   return 0;
 }
