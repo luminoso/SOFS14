@@ -51,7 +51,83 @@ int soFreeInode (uint32_t nInode)
 {
    soColorProbe (612, "07;31", "soFreeInode (%"PRIu32")\n", nInode);
 
-  /* insert your code here */
+  //if( nInode == 0) return -EINVAL;
+  
+  int stat;
+  SOSuperBlock *p_sb;
+  
+  SOInode *p_iNode;
+  uint32_t nBlk, offset;
+  
+  SOInode *p_iTail;
+  uint32_t nBlkiTail, offsetiTail;
+ 
+  
+  /* Carregar super bloco */
+   if((stat = soLoadSuperBlock()) != 0)
+    return stat;
 
+  /* Ler super bloco */
+   p_sb = soGetSuperBlock(); 
+   
+  /* Converter nInode no seu numero de bloco e seu offset */
+   if((stat = soConvertRefInT(nInode, &nBlk, &offset)) != 0)
+   	return stat;
+   		
+  /* Carrega o conteudo do um bloco especifico da tabela de inodes */
+   if((stat = soLoadBlockInT(nBlk)) != 0)
+   	return stat;
+
+  /* Se lido correctamente vamos obter o ponteiro para ele */
+   SOInode *p_itable; // ponteiro para o nó i 
+   p_itable = soGetBlockInT();
+  
+  
+  
+  
+  
+  /* Se estiver vazia */
+  if( p_sb->iFree == 0)
+  {
+	  p_iNode[offset].vD1.prev = p_iNode[offset].vD2.next = NULL_INODE;
+	  p_sb->iHead = p_sb->iTail = nInode;
+	  
+	  if ((stat = soStoreBlockInT()) != 0) {
+	   return stat;
+	  }
+  }
+  
+  /* Se a lista tem pelo menos 1 elemento */
+  else
+  {
+	p_iNode[offset].vD1.prev = p_sb->iTail;
+	p_iNode[offset].vD2.next = NULL_INODE;
+	
+	/* Converter iTail no seu numero de bloco e seu offset */
+    if((stat = soConvertRefInT(p_sb->iTail, &nBlk, &offset)) != 0)
+   	return stat;
+	
+	if ((stat = soLoadBlockInT(nBlkTail)) != 0) {
+			return stat;
+	}
+
+	if ((array = soGetBlockInT()) == NULL) {
+			return -EIO;
+	}
+	
+	p_iTail[offsetiTail].vD2.next = nInode;
+	p_sb->iTail = nInode;	
+  }
+  
+  p_sb->iFree +=1;
+  
+  /* Gravar o super bloco */
+  if( (stat = soStoreSuperBlock()) != 0) 
+   return stat;
+   
+  /* Gravar tabela de Inodes */
+  if((stat = soStoreBlockInT()) != 0) 
+   return stat;
+  
    return 0;
 }
