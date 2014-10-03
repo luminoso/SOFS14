@@ -1,7 +1,7 @@
 /**
  *  \file soFreeInode.c (implementation file)
  *
- *  \author
+ *  \author João Cravo
  */
 
 #include <stdio.h>
@@ -68,7 +68,16 @@ int soFreeInode (uint32_t nInode)
     return stat;
 
   /* Ler super bloco */
-   p_sb = soGetSuperBlock(); 
+   if ((p_sb = soGetSuperBlock()) == NULL)
+		return -EIO;
+   
+  /* Verificar os parametros do nInode */
+   if (nInode == 0 || nInode >= p_sb->iTotal)
+		return -EINVAL;
+
+  /* Verify iNode Table inconsistency */
+   if ((stat = soQCheckInT(p_sb)) != 0)
+		return stat;
    
   /* Converter nInode no seu numero de bloco e seu offset */
    if((stat = soConvertRefInT(nInode, &nBlk, &offset)) != 0)
@@ -78,44 +87,41 @@ int soFreeInode (uint32_t nInode)
    if((stat = soLoadBlockInT(nBlk)) != 0)
    	return stat;
 
-  /* Se lido correctamente vamos obter o ponteiro para ele */
-   SOInode *p_itable; // ponteiro para o nó i 
-   p_itable = soGetBlockInT();
-  
-  
-  
-  
-  
+  /* Ler nInode */
+   if ((stat = soLoadBlockInT(nBlk)) != 0)
+		return stat;
+		
+   /* Verificar a consistencia do iNode */
+   if ((stat = soQCheckInodeIU(p_sb, p_iNode)) != 0)
+		return stat;
+
   /* Se estiver vazia */
   if( p_sb->iFree == 0)
   {
-	  p_iNode[offset].vD1.prev = p_iNode[offset].vD2.next = NULL_INODE;
+	  p_iNode[offset].vD2.prev = p_iNode[offset].vD1.next = NULL_INODE;
 	  p_sb->iHead = p_sb->iTail = nInode;
 	  
-	  if ((stat = soStoreBlockInT()) != 0) {
-	   return stat;
-	  }
+	  if ((stat = soStoreBlockInT()) != 0)
+	   return stat; 
   }
   
   /* Se a lista tem pelo menos 1 elemento */
   else
   {
-	p_iNode[offset].vD1.prev = p_sb->iTail;
-	p_iNode[offset].vD2.next = NULL_INODE;
+	p_iNode[offset].vD2.prev = p_sb->iTail;
+	p_iNode[offset].vD1.next = NULL_INODE;
 	
 	/* Converter iTail no seu numero de bloco e seu offset */
     if((stat = soConvertRefInT(p_sb->iTail, &nBlk, &offset)) != 0)
    	return stat;
 	
-	if ((stat = soLoadBlockInT(nBlkTail)) != 0) {
+	if ((stat = soLoadBlockInT(nBlkiTail)) != 0)
 			return stat;
-	}
 
-	if ((array = soGetBlockInT()) == NULL) {
-			return -EIO;
-	}
-	
-	p_iTail[offsetiTail].vD2.next = nInode;
+    if ((stat = soLoadBlockInT(nBlkiTail)) != 0) 
+			return stat;
+
+	p_iTail[offsetiTail].vD1.next = nInode;
 	p_sb->iTail = nInode;	
   }
   
