@@ -68,7 +68,7 @@ int soAllocDataCluster (uint32_t nInode, uint32_t *p_nClust)
 	uint32_t nBlock, offset, nClust; //variaveis para localizar o inode pretendido, e o cluster
 	SOSuperBlock *p_sb; //ponteiro para o superbloco
 	SOInode *p_inode; // ponteiro para o inode que vai ser reservado o cluster
-  SODataClust *cluster; //ponteiro para o cluster que vai ser reservado
+  SODataClust *p_cluster; //ponteiro para o cluster que vai ser reservado
 
 	if((stat = soLoadSuperBlock()) != 0)
 		return stat;
@@ -104,20 +104,31 @@ int soAllocDataCluster (uint32_t nInode, uint32_t *p_nClust)
 	p_sb->dZoneRetriev.cacheIdx += 1;
 	p_sb->dZoneFree -= 1;
 
-
 	//ir buscar o cluster nClust. nclust needs to be physical number
   //relação entre numero fisico e numero logico
   //NFClt = dzone_start + NLClt * BLOCKS_PER_CLUSTER;
   if((stat = soLoadDirRefClust(p_sb->dZoneStart + (nClust * BLOCKS_PER_CLUSTER))) != 0)
     return stat;
 
-  cluster = soGetDirRefClust();
+  p_cluster = soGetDirRefClust();
 
-  cluster->prev = cluster->next = NULL_CLUSTER;
-  cluster->stat = nInode;
-  *p_nClust = nClust;
+  p_cluster->prev = p_cluster->next = NULL_CLUSTER;
+  p_cluster->stat = nInode;
   
+  p_inode->d[p_inode->cluCount] = nClust;
+  p_inode->cluCount += 1;
 
+  *p_nClust = p_inode->d[p_inode->cluCount-1];
+
+  if(p_inode->d[p_inode->cluCount-1] != nClust)
+    return -EDCNOTIL;
+
+  if(p_cluster->stat != nInode)
+    return -EWGINODENB;
+
+  if((stat = soWriteCacheCluster(p_sb->dZoneStart + (nClust * BLOCKS_PER_CLUSTER),p_cluster)) != 0)
+    return stat;
+  
   return 0;
 }
 
@@ -135,8 +146,66 @@ int soAllocDataCluster (uint32_t nInode, uint32_t *p_nClust)
 
 int soReplenish (SOSuperBlock *p_sb)
 {
+  int stat, nctt, n;
+  SODataClust *p_cluster;
+  uint32_t nLCluster;
 
-  /* insert your code here */
+  if(p_sb == NULL)
+    return EBADF;
+
+  if((stat = soQCheckSuperBlock(p_sb)) != 0)
+    return -ELIBBAD;
+
+  nctt = (p_sb->dZoneFree < DZONE_CACHE_SIZE) ? p_sb->dZoneFree : DZONE_CACHE_SIZE;
+  nLCluster = p_sb->dHead;
+
+  for(n = DZONE_CACHE_SIZE - nctt; n < DZONE_CACHE_SIZE; n++){
+
+    if((stat = soLoadDirRefClust(p_sb->dZoneStart + (nLCluster * BLOCKS_PER_CLUSTER))) != 0)
+      return stat;
+
+    p_cluster = soGetDirRefClust();
+
+    if(nLCluster == NULL_CLUSTER)
+      break;
+
+    p_sb->dZoneRetriev.cache[n] = nLCluster;
+    nLCluster = p_cluster->next;
+    p_cluster->prev = p_cluster->next = NULL_CLUSTER;
+  }
+
+  if(n != DZONE_CACHE_SIZE){
+    p_sb->dHead = p_sb->dTail = NULL_CLUSTER;
+    
+    soDeplete(p_sb);
+
+    nLCluster = p_sb->dHead;
+
+    for( ; n < DZONE_CACHE_SIZE; n++){
+
+      if((stat = soLoadDirRefClust(p_sb->dZoneStart + (nLCluster * BLOCKS_PER_CLUSTER))) != 0)
+        return stat;
+
+      p_cluster = soGetDirRefClust();
+
+      if(nLCluster == NULL_CLUSTER)
+        break;
+
+      p_sb->dZoneRetriev.cache[n] = nLCluster;
+      nLCluster = p_cluster->next;
+      p_cluster->prev = p_cluster->next = NULL_CLUSTER;
+    }
+  }
+
+  if(nLCluster != NULL_CLUSTER)
+    p_cluster->prev = NULL_CLUSTER;
+
+  p_sb->dZoneRetriev.cacheIdx = DZONE_CACHE_SIZE - nctt;
+  p_sb->dHead = nLCluster;
+
+  if(nLCluster == NULL_CLUSTER)
+    p_sb->dTail = NULL_CLUSTER;
+  
 
   return 0;
 }
