@@ -92,9 +92,6 @@ int soAllocDataCluster (uint32_t nInode, uint32_t *p_nClust)
 	if((stat = soQCheckInodeIU(p_sb, &p_inode[offset])) != 0)
 		return stat;
 
-	//Falta testar EDCNOTIL e EWGINODENB
-	//acho que so é feito no fim
-
 	if(p_sb->dZoneRetriev.cacheIdx == DZONE_CACHE_SIZE)
 		soReplenish(p_sb);
 
@@ -122,10 +119,10 @@ int soAllocDataCluster (uint32_t nInode, uint32_t *p_nClust)
   *p_nClust = nClust;
 
   /*if(p_inode->d[p_inode->cluCount-1] != nClust)
-    return -EDCNOTIL;
+    return -EDCNOTIL;*/
 
   if(p_cluster->stat != nInode)
-    return -EWGINODENB;*/
+    return -EWGINODENB;
 
   if((stat = soStoreDirRefClust()) != 0)
     return stat;
@@ -168,13 +165,13 @@ int soReplenish (SOSuperBlock *p_sb)
 
   for(n = DZONE_CACHE_SIZE - nctt; n < DZONE_CACHE_SIZE; n++){
 
+    if(nLCluster == NULL_CLUSTER)
+      break;
+
     if((stat = soLoadDirRefClust(p_sb->dZoneStart + (nLCluster * BLOCKS_PER_CLUSTER))) != 0)
       return stat;
 
     p_cluster = soGetDirRefClust();
-
-    if(nLCluster == NULL_CLUSTER)
-      break;
 
     p_sb->dZoneRetriev.cache[n] = nLCluster;
     nLCluster = p_cluster->next;
@@ -198,9 +195,6 @@ int soReplenish (SOSuperBlock *p_sb)
 
       p_cluster = soGetDirRefClust();
 
-      if(nLCluster == NULL_CLUSTER)
-        break;
-
       p_sb->dZoneRetriev.cache[n] = nLCluster;
       nLCluster = p_cluster->next;
       p_cluster->prev = p_cluster->next = NULL_CLUSTER;
@@ -219,6 +213,5 @@ int soReplenish (SOSuperBlock *p_sb)
   if(nLCluster == NULL_CLUSTER)
     p_sb->dTail = NULL_CLUSTER;
   
-
   return 0;
 }
