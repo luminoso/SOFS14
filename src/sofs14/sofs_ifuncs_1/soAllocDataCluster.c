@@ -65,7 +65,7 @@ int soAllocDataCluster (uint32_t nInode, uint32_t *p_nClust)
 	soColorProbe (613, "07;33", "soAllocDataCluster (%"PRIu32", %p)\n", nInode, p_nClust);
 
 	int stat;
-	uint32_t nBlock, offset, nClust; //variaveis para localizar o inode pretendido, e o cluster
+	uint32_t nBlock, offset, nClust, clusterStat; //variaveis para localizar o inode pretendido, e o cluster
 	SOSuperBlock *p_sb; //ponteiro para o superbloco
 	SOInode *p_inode; // ponteiro para o inode que vai ser reservado o cluster
   SODataClust *p_cluster; //ponteiro para o cluster que vai ser reservado
@@ -91,6 +91,9 @@ int soAllocDataCluster (uint32_t nInode, uint32_t *p_nClust)
 
 	if((stat = soQCheckInodeIU(p_sb, &p_inode[offset])) != 0)
 		return stat;
+
+  if((stat = soQCheckStatDC(p_sb, nClust, &clusterStat)) != 0)
+    return stat;
 
 	if(p_sb->dZoneRetriev.cacheIdx == DZONE_CACHE_SIZE)
 		soReplenish(p_sb);
@@ -152,7 +155,7 @@ int soReplenish (SOSuperBlock *p_sb)
 {
   int stat, nctt, n;
   SODataClust *p_cluster;
-  uint32_t nLCluster;
+  uint32_t nLCluster, NFClt;
 
   if(p_sb == NULL)
     return EBADF;
@@ -179,6 +182,7 @@ int soReplenish (SOSuperBlock *p_sb)
 
     if((stat = soStoreDirRefClust()) != 0)
       return stat;
+
   }
 
   if(n != DZONE_CACHE_SIZE){
