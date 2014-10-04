@@ -47,97 +47,81 @@
  *  \return -<em>other specific error</em> issued by \e lseek system call
  */
 
-int soFreeInode (uint32_t nInode)
-{
-   soColorProbe (612, "07;31", "soFreeInode (%"PRIu32")\n", nInode);
+int soFreeInode(uint32_t nInode) {
+    soColorProbe(612, "07;31", "soFreeInode (%"PRIu32")\n", nInode);
 
-  int stat;
-  SOSuperBlock *p_sb;
-  
-  SOInode *p_iNode;
-  uint32_t nBlk, offset;
-  
-  SOInode *p_iTail;
-  uint32_t nBlkiTail, offsetiTail;
- 
-  
-  /* Carregar Super Bloco */
-   if((stat = soLoadSuperBlock()) != 0)
-    return stat;
+    int stat;
+    SOSuperBlock *p_sb;
+    SOInode *p_itable;
+    uint32_t nBlk, offset;
 
-  /* Ler Super Bloco */
-   if ((p_sb = soGetSuperBlock()) == NULL)
-		return -EIO;
-   
-  /* Verificar os parametros do nInode */
-   if (nInode == 0 || nInode >= p_sb->iTotal)
-		return -EINVAL;
+    /* Carregar super bloco */
+    if ((stat = soLoadSuperBlock()) != 0)
+        return stat;
 
-  /* Verificar inconsistencia da Tabela de iNodes */
-   if ((stat = soQCheckInT(p_sb)) != 0)
-		return stat;
-   
-  /* Converter nInode no seu numero de bloco e seu offset */
-   if((stat = soConvertRefInT(nInode, &nBlk, &offset)) != 0)
-   	return stat;
-   		
-  /* Carrega o conteudo do bloco especifico da tabela de inodes */
-   if((stat = soLoadBlockInT(nBlk)) != 0)
-   	return stat;
+    p_sb = soGetSuperBlock();
    	
   /* Ler o conteudo carregado */
    if ((p_iNode = soGetBlockInT()) == NULL)
 	return -EIO;
 
-  /* Verificar a consistencia do iNode */ 
-   if ((stat = soQCheckInodeIU(p_sb, p_iNode)) != 0) 
-    return stat;
+    /* Verificar os parametros do nInode */
+    if (nInode <= 0 || nInode >= p_sb->iTotal)
+        return -EINVAL;
 
-  /* Se estiver vazia */
-  if( p_sb->iFree == 0)
-  {
-	  p_iNode[offset].vD2.prev = p_iNode[offset].vD1.next = NULL_INODE;
-	  p_sb->iHead = p_sb->iTail = nInode;
-	  
-	  if ((stat = soStoreBlockInT()) != 0)
-	   return stat; 
-  }
-  
-  /* Se a lista tem pelo menos 1 elemento */
-  else
-  {
-	p_iNode[offset].vD2.prev = p_sb->iTail;
-	p_iNode[offset].vD1.next = NULL_INODE;
-	
-	/* Gravar a info do iNode */
-	if ((stat = soStoreBlockInT()) != 0)
-	 return stat;
-			
-	/* Converter iTail no seu numero de bloco e seu offset */
-    if((stat = soConvertRefInT(p_sb->iTail, &nBlkiTail, &offsetiTail)) != 0)
-   	 return stat;
-	
-	/* Carrega o conteudo do um bloco especifico da tabela de inodes */
-	if ((stat = soLoadBlockInT(nBlkiTail)) != 0)
-	 return stat;
+    /* Verify iNode Table inconsistency */
+    if ((stat = soQCheckInT(p_sb)) != 0)
+        return stat;
 
-	/* Ler o conteudo carregado */
-	if ((p_iTail = soGetBlockInT()) == NULL)
-	 return -EIO;
-		
-	p_iTail[offsetiTail].vD1.next = nInode;
-	p_sb->iTail = nInode;	
-  }
-  
-  p_sb->iFree +=1;
-  
-  /* Gravar o super bloco */
-  if( (stat = soStoreSuperBlock()) != 0) 
-   return stat;
-   
-  /* Gravar tabela de Inodes */
-  if((stat = soStoreBlockInT()) != 0) 
-   return stat;
-  
-   return 0;
+    /* Converter o numero do nó-i nInode no numero do bloco e seu offset */
+    if ((stat = soConvertRefInT(nInode, &nBlk, &offset)) != 0)
+        return stat;
+
+    /* Carrega o conteudo do um bloco especifico para uma tabela de inodes */
+    if ((stat = soLoadBlockInT(nBlk)) != 0)
+        return stat;
+    
+    p_itable = soGetBlockInT();
+    
+    // Verificar se é um no-i free está livre, mas em dirty-state
+    if ((stat = soQCheckInodeIU(p_sb,&p_itable[offset])) != 0)
+        return stat;
+
+    /* Se estiver vazia */
+    if (p_sb->iFree == 0) {
+        p_itable[offset].mode |= INODE_FREE;
+        p_itable[offset].vD2.prev = p_itable[offset].vD1.next = NULL_INODE;
+        p_sb->iHead = p_sb->iTail = nInode;
+    } else { /* Se a lista tem pelo menos 1 elemento */
+        p_itable[offset].vD2.prev = p_sb->iTail;
+        p_itable[offset].vD1.next = NULL_INODE;
+        p_itable[offset].mode |= INODE_FREE;
+        
+        if ((stat = soStoreBlockInT()) != 0)
+	   return stat;
+
+        /* Converter iTail no seu numero de bloco e seu offset */
+        if ((stat = soConvertRefInT(p_sb->iTail, &nBlk, &offset)) != 0)
+            return stat;
+
+        if ((stat = soLoadBlockInT(nBlk)) != 0)
+            return stat;
+        
+        p_itable = soGetBlockInT();
+
+        p_itable[offset].vD1.next = nInode;
+        p_sb->iTail = nInode;
+    }
+
+    p_sb->iFree += 1;
+
+    /* Gravar o super bloco */
+    if ((stat = soStoreSuperBlock()) != 0)
+        return stat;
+
+    /* Gravar tabela de Inodes */
+    if ((stat = soStoreBlockInT()) != 0)
+        return stat;
+
+    return 0;
 }
