@@ -76,6 +76,11 @@ int soAllocInode(uint32_t type, uint32_t* p_nInode) {
     if (p_sb->iFree == 0)
         return -ENOSPC;
 
+/*  
+    falha em 100% dos casos. porque?
+    if(*p_nInode < 1 || *p_nInode > p_sb->iTotal)
+        return -EINVAL;
+*/
     /*converter inode no 1º arg. no seu numero de bloco e seu offset*/
     if ((stat = soConvertRefInT(p_sb->iHead, &nBlk, &offset)) != 0)
         return stat;
@@ -105,8 +110,8 @@ int soAllocInode(uint32_t type, uint32_t* p_nInode) {
             The contents of the mode and refcount fields of the inode are checked for consistency. Only combinations of the mode field which lead for the inode to be either in the clean or in the dirty state are allowed.
      */
     if ((stat = soQCheckFCInode(&p_itable[offset])) != 0) { // significa que o inode nao está clean. é preciso "limpar"
+        printf("\n numEro: %i \n iTotal: %i \n stat: %i\n",*p_nInode,p_sb->iTotal,stat);
         printf("\ndirty???\n");
-
 
         // se não está clean, então só pode estar dirty
         if ((stat = soQCheckFDInode(p_sb, &p_itable[offset])) != 0)
@@ -139,7 +144,7 @@ int soAllocInode(uint32_t type, uint32_t* p_nInode) {
             printf("nao está bem limpo foda-se\n");
             return stat;
         }
-
+        printf("clean!\n");
     }
 
     // atribuição dos valores certos ao inode
