@@ -92,14 +92,15 @@ int soAllocDataCluster (uint32_t nInode, uint32_t *p_nClust)
 	if((stat = soQCheckInodeIU(p_sb, &p_inode[offset])) != 0)
 		return stat;
 
-  if((stat = soQCheckStatDC(p_sb, nClust, &clusterStat)) != 0)
-    return stat;
-
 	if(p_sb->dZoneRetriev.cacheIdx == DZONE_CACHE_SIZE)
 		soReplenish(p_sb);
 
   //nclust = logical number of cluster
 	nClust = p_sb->dZoneRetriev.cache[p_sb->dZoneRetriev.cacheIdx]; // passar o numero do proximo cluster livre para nClust
+
+  if((stat = soQCheckStatDC(p_sb, nClust, &clusterStat)) != 0)
+    return stat;
+
 	p_sb->dZoneRetriev.cache[p_sb->dZoneRetriev.cacheIdx] = NULL_CLUSTER; //esse cluster já nao vai estar disponivel, por isso NULL_CLUSTER
 	p_sb->dZoneRetriev.cacheIdx += 1;
 	p_sb->dZoneFree -= 1;
@@ -155,7 +156,7 @@ int soReplenish (SOSuperBlock *p_sb)
 {
   int stat, nctt, n;
   SODataClust *p_cluster;
-  uint32_t nLCluster, NFClt;
+  uint32_t nLCluster;
 
   if(p_sb == NULL)
     return EBADF;
@@ -208,8 +209,17 @@ int soReplenish (SOSuperBlock *p_sb)
     }
   }
 
-  if(nLCluster != NULL_CLUSTER)
+  if(nLCluster != NULL_CLUSTER){
+    if((stat = soLoadDirRefClust(p_sb->dZoneStart + (nLCluster * BLOCKS_PER_CLUSTER))) != 0)
+      return stat;
+
+    p_cluster = soGetDirRefClust();
+
     p_cluster->prev = NULL_CLUSTER;
+
+    if((stat = soStoreDirRefClust()) != 0)
+        return stat;
+  }
 
   p_sb->dZoneRetriev.cacheIdx = DZONE_CACHE_SIZE - nctt;
   p_sb->dHead = nLCluster;
