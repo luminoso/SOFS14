@@ -71,6 +71,10 @@ int soAllocInode(uint32_t type, uint32_t* p_nInode) {
         return stat;
 
     p_sb = soGetSuperBlock(); /* ler super bloco */
+    
+    /*verifica se a lista de nos i livres está vazia*/
+    if (p_sb->iFree == 0)
+        return -ENOSPC;
 
     /*converter inode no 1º arg. no seu numero de bloco e seu offset*/
     if ((stat = soConvertRefInT(p_sb->iHead, &nBlk, &offset)) != 0)
@@ -87,10 +91,6 @@ int soAllocInode(uint32_t type, uint32_t* p_nInode) {
     /*verifica se o type é ilegal ou se o ponteiro para inode number é nulo*/
     if (((type & INODE_TYPE_MASK) == 0) || p_nInode == NULL) //esta condicao nao verifica se é directorio E regular ao mesmo tempo numa situacao de erro
         return -EINVAL;
-
-    /*verifica se a lista de nos i livres está vazia*/
-    if (p_sb->iFree == 0)
-        return -ENOSPC;
 
     /*
     int 	soQCheckFCInode (SOInode *p_inode)
