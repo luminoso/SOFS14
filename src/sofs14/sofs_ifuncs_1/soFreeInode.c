@@ -60,10 +60,6 @@ int soFreeInode(uint32_t nInode) {
         return stat;
 
     p_sb = soGetSuperBlock();
-   	
-  /* Ler o conteudo carregado */
-   if ((p_iNode = soGetBlockInT()) == NULL)
-	return -EIO;
 
     /* Verificar os parametros do nInode */
     if (nInode <= 0 || nInode >= p_sb->iTotal)
