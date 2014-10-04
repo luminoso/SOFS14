@@ -57,75 +57,120 @@
  *  \return -<em>other specific error</em> issued by \e lseek system call
  */
 
-int soAllocInode (uint32_t type, uint32_t* p_nInode)
-{
-   soColorProbe (611, "07;31", "soAllocInode (%"PRIu32", %p)\n", type, p_nInode);
+int soAllocInode(uint32_t type, uint32_t* p_nInode) {
+    soColorProbe(611, "07;31", "soAllocInode (%"PRIu32", %p)\n", type, p_nInode);
 
-   int stat;
-   uint32_t nBlk, offset;
+    int stat;
+    uint32_t nBlk, offset;
+    SOSuperBlock *p_sb;
+    SOInode *p_itable;  // ponteiro para o nó i a revervar
+    uint32_t nextInode; // qual o inode que fica seguinte ao iHead
 
-   SOSuperBlock *p_sb;
+    /* carregar super bloco */
+    if ((stat = soLoadSuperBlock()) != 0)
+        return stat;
 
-   /* carregar super bloco */
-   if((stat = soLoadSuperBlock()) != 0)
-      return stat;
+    p_sb = soGetSuperBlock(); /* ler super bloco */
 
-   p_sb = soGetSuperBlock(); /* ler super bloco */
+    /*converter inode no 1º arg. no seu numero de bloco e seu offset*/
+    if ((stat = soConvertRefInT(p_sb->iHead, &nBlk, &offset)) != 0)
+        return stat;
 
+    /*Carrega o conteudo do um bloco especifico da tabela de inodesLoad the contents of a specific block of the table of inodes into internal storage*/
+    if ((stat = soLoadBlockInT(nBlk)) != 0)
+        return stat;
 
-   /*converter inode no 1º arg. no seu numero de bloco e seu offset*/
-   if((stat = soConvertRefInT(p_sb->iHead, &nBlk, &offset)) != 0)
-   	return stat;
-   		
-   	/*Carrega o conteudo do um bloco especifico da tabela de inodesLoad the contents of a specific block of the table of inodes into internal storage*/
-   if((stat = soLoadBlockInT(nBlk)) != 0)
-   	return stat;
+    // se lido correctamente vamos obter o ponteiro para ele
+    p_itable = soGetBlockInT();
+    nextInode = p_itable[offset].vD1.next; // pois é limpo quando é atribuido ou na limpeza do inode
 
-   	// se lido correctamente vamos obter o ponteiro para ele
-   SOInode *p_itable; // ponteiro para o nó i 
-   p_itable = soGetBlockInT();
+    /*verifica se o type é ilegal ou se o ponteiro para inode number é nulo*/
+    if (((type & INODE_TYPE_MASK) == 0) || p_nInode == NULL) //esta condicao nao verifica se é directorio E regular ao mesmo tempo numa situacao de erro
+        return -EINVAL;
 
+    /*verifica se a lista de nos i livres está vazia*/
+    if (p_sb->iFree == 0)
+        return -ENOSPC;
 
+    /*
+    int 	soQCheckFCInode (SOInode *p_inode)
+            Quick check of a free inode in the clean state.
+            The contents of all the fields of the inode are checked. Only the values legal in the clean state are allowed.
 
+    int 	soQCheckFDInode (SOSuperBlock *p_sb, SOInode *p_inode)
+            Quick check of a free inode in the dirty state.
+            The contents of all the fields of the inode, except owner, group and size, are checked for consistency. Only legal values are allowed.
 
-   /*verifica se o type é ilegal ou se o ponteiro para inode number é nulo*/
-   if( ( (type & INODE_TYPE_MASK) == 0) || p_nInode == NULL)
-      return -EINVAL;
-
-   /*verifica se a lista de nos i livres está vazia*/
-   if(p_sb->iFree == 0)
-      return -ENOSPC;
-
-   /*verifica se a lista de inodes é inconsistente */
-   if( (stat = soQCheckFInode(&p_itable[offset]) ) != 0)
-      return stat; /*-EFININVAL;*/
-
-   /* necessário verificar insconsistencia no estado sujo ? */
-
-
-   *p_nInode = p_sb->iHead; /* 1º elemento*/
-
-   /* se tiver apenas 1 elemento */
-   if(p_sb->iFree == 1)
-      p_sb->iHead = p_sb->iTail = NULL_INODE;
-
-   /* se tiver 2 ou mais elementos */
-   else
-   {
-      p_sb->iHead = p_itable[offset].vD1.next; 
-      p_itable[offset].vD2.prev = NULL_INODE;  /* aponta para a terra */
-   }
-
-   p_sb->iFree -=1; /* decrementa nº de Inodes livres*/
-
-   if( (stat = soStoreSuperBlock()) != 0) /* gravar o Super Bloco */
-      return stat;
-   
-   if((stat = soStoreBlockInT()) != 0) /* gravar tabela de nosI */
-      return stat;
+    int 	soQCheckInodeIU (SOSuperBlock *p_sb, SOInode *p_inode)
+            The contents of the mode and refcount fields of the inode are checked for consistency. Only combinations of the mode field which lead for the inode to be either in the clean or in the dirty state are allowed.
+     */
+    if ((stat = soQCheckFCInode(&p_itable[offset])) != 0) { // significa que o inode nao está clean. é preciso "limpar"
+        printf("\ndirty???\n");
 
 
-  /* insert your code here */
+        // se não está clean, então só pode estar dirty
+        if ((stat = soQCheckFDInode(p_sb, &p_itable[offset])) != 0)
+            printf("\n ola2 \n");
+        return stat;
 
-   return 0;
+        printf("\ninode sujo? limpo? ");
+        // limpeza do inode
+        p_itable[offset].mode = 0;
+        p_itable[offset].owner = 0; // fica sem dono
+        p_itable[offset].group = 0; // fica sem grupo
+        p_itable[offset].refCount = 0; // fica sem referencias
+        p_itable[offset].size = 0; // fica sem tamanho (nao sabemos para o que vai servir o inode)
+        p_itable[offset].cluCount = 0; // fica sem data clusters associados
+        p_itable[offset].vD1.next = NULL_INODE;
+        p_itable[offset].vD2.prev = NULL_INODE;
+        p_itable[offset].vD1.aTime = p_itable[offset].vD2.mTime = time(NULL);
+
+        uint32_t referencescount;
+
+        // limpar as referencias directas
+        for (referencescount = 0; referencescount < N_DIRECT; referencescount++)
+            p_itable[offset].d[referencescount] = NULL_INODE;
+
+        // limpar as referencias indirectas
+        p_itable[offset].i1 = p_itable[offset].i2 = NULL_INODE;
+
+        // e agora, está clean?
+        if ((stat = soQCheckFDInode(p_sb, &p_itable[offset])) != 0) {
+            printf("nao está bem limpo foda-se\n");
+            return stat;
+        }
+
+    }
+
+    // atribuição dos valores certos ao inode
+    p_itable[offset].mode = type;
+    p_itable[offset].owner = getuid();
+    p_itable[offset].group = getgid();
+    p_itable[offset].vD1.aTime = p_itable[offset].vD2.mTime = time(NULL);
+
+    *p_nInode = p_sb->iHead; /* 1º elemento*/
+    printf("\nolá!!\n");
+
+    // se tiver apenas 1 elemento
+    if (p_sb->iFree == 1) {
+        p_sb->iHead = p_sb->iTail = NULL_INODE;
+    } else { // se tiver 2 ou mais elementos
+        p_sb->iHead = nextInode;
+
+        if ((stat = soConvertRefInT(nextInode, &nBlk, &offset)) != 0)
+            return stat;
+        p_itable = soGetBlockInT();
+
+        p_itable[offset].vD2.prev = NULL_INODE; // aponta para a terra
+    }
+
+    p_sb->iFree -= 1; /* decrementa nº de Inodes livres*/
+
+    if ((stat = soStoreSuperBlock()) != 0) /* gravar o Super Bloco */
+        return stat;
+
+    if ((stat = soStoreBlockInT()) != 0) /* gravar tabela de nosI */
+        return stat;
+
+    return 0;
 }
