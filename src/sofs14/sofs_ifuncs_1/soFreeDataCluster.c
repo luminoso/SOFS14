@@ -22,7 +22,7 @@
 
 /* Allusion to internal function */
 
-int soDeplete (SOSuperBlock *p_sb);
+int soDeplete(SOSuperBlock *p_sb);
 
 /**
  *  \brief Free the referenced data cluster.
@@ -47,50 +47,64 @@ int soDeplete (SOSuperBlock *p_sb);
  *  \return -<em>other specific error</em> issued by \e lseek system call
  */
 
-int soFreeDataCluster (uint32_t nClust)
-{
-  soColorProbe (614, "07;33", "soFreeDataCluster (%"PRIu32")\n", nClust);
-  
-  int stat;
-  SOSuperBlock *p_sb;
-  uint32_t  NFClt;
-  SODataClust datacluster;
-  
-  if ((stat = soLoadSuperBlock ()) != 0)
-    return stat;
-  p_sb = soGetSuperBlock();
-  
-  // validação EINVAL
-  if(nClust > p_sb->dZoneTotal) return  -EINVAL;
-  if(nClust <= 0) return -EINVAL;
-  
-  NFClt = p_sb->dZoneStart + nClust * BLOCKS_PER_CLUSTER;
-  
-  if((stat = soReadCacheCluster(NFClt,&datacluster)) != 0)
-    return stat;
-  
-  if(datacluster.stat == NULL_INODE) return -EDCNALINVAL;
-  
-  uint32_t p_stat;
-  if((stat = soQCheckStatDC(p_sb,nClust,&p_stat)) != 0)
-    return stat;
-  
-  if(p_stat != ALLOC_CLT) return -EDCNALINVAL;
-  
-  datacluster.prev = datacluster.next = NULL_CLUSTER;
-  
-  // verificar se a cache de insercao está cheia
-  if(p_sb->dZoneInsert.cacheIdx == DZONE_CACHE_SIZE)
-    soDeplete(p_sb);
-  
-  p_sb->dZoneInsert.cache[p_sb->dZoneInsert.cacheIdx] = nClust;
-  p_sb->dZoneInsert.cacheIdx +=1;
-  p_sb->dZoneFree += 1;
-  
-  if((stat = soWriteCacheCluster(NFClt,&datacluster)) != 0)
-    return stat;
-  
-  return 0;
+int soFreeDataCluster(uint32_t nClust) {
+    soColorProbe(614, "07;33", "soFreeDataCluster (%"PRIu32")\n", nClust);
+
+    int stat;                   // function return status control
+    SOSuperBlock *p_sb;         // super block pointer
+    uint32_t NFClt;             // data cluster physical position
+    SODataClust datacluster;
+    uint32_t dc_status;         // data cluster allocation status
+
+    // load super block
+    if ((stat = soLoadSuperBlock()) != 0)
+        return stat;
+
+    // get superblock pointer data
+    p_sb = soGetSuperBlock();
+
+    // check if the data cluster number is in the right range
+    if (nClust > p_sb->dZoneTotal) return -EINVAL;
+    if (nClust <= 0) return -EINVAL;
+
+    // calculate data cluster physical position
+    NFClt = p_sb->dZoneStart + nClust * BLOCKS_PER_CLUSTER;
+
+    // read data cluster in NFClt physical position to our variable
+    if ((stat = soReadCacheCluster(NFClt, &datacluster)) != 0)
+        return stat;
+
+    // check if the data cluster was allocated
+    if (datacluster.stat == NULL_INODE) return -EDCNALINVAL;
+
+    if ((stat = soQCheckStatDC(p_sb, nClust, &dc_status)) != 0)
+        return stat;
+
+    if (dc_status != ALLOC_CLT) return -EDCNALINVAL;
+
+    // end of validations. proceed to data cluster freeing 
+
+    // data cluster isn't in a double linked list anymore
+    datacluster.prev = datacluster.next = NULL_CLUSTER;
+
+    // check if the insert cache is full. if it is, deplete it
+    if (p_sb->dZoneInsert.cacheIdx == DZONE_CACHE_SIZE)
+        soDeplete(p_sb);
+
+    // insert freed data cluster in insert cache list
+    p_sb->dZoneInsert.cache[p_sb->dZoneInsert.cacheIdx] = nClust;
+    p_sb->dZoneInsert.cacheIdx += 1;
+    p_sb->dZoneFree += 1;
+
+    // write data cluster new information
+    if ((stat = soWriteCacheCluster(NFClt, &datacluster)) != 0)
+        return stat;
+
+    // save super block new information
+    if ((stat = soStoreSuperBlock()) != 0)
+        return stat;
+
+    return 0;
 }
 
 /**
@@ -105,68 +119,100 @@ int soFreeDataCluster (uint32_t nClust)
  *  \return -<em>other specific error</em> issued by \e lseek system call
  */
 
-int soDeplete (SOSuperBlock *p_sb)
-{
-  int stat;                                             // variavel para controlar o retorno das funcoes chamadas
-  SODataClust datacluster;
-  uint32_t NFClt;
-  
-  if(p_sb->dTail != NULL_CLUSTER){
-    NFClt =  p_sb->dZoneStart + p_sb->dTail*BLOCKS_PER_CLUSTER;
-    if((stat = soReadCacheCluster(NFClt,&datacluster)) != 0)
-      return stat;
-    datacluster.next = p_sb->dZoneInsert.cache[0];
+int soDeplete(SOSuperBlock *p_sb) {
+    int stat;                   // function return status control
+    SODataClust datacluster;
+    uint32_t NFClt;             // data cluster physical position
+    unsigned int k;             // dZoneInsert cache position
+
+    /* 1- check if there's still data clusters blocks in the linked list
+     * 2- if so, connect dZoneInsert cache first position to dTail.next
+     */
+
+    if (p_sb->dTail != NULL_CLUSTER) {
+        
+        NFClt = p_sb->dZoneStart + p_sb->dTail*BLOCKS_PER_CLUSTER;
+
+        if ((stat = soReadCacheCluster(NFClt, &datacluster)) != 0)
+            return stat;
+
+        datacluster.next = p_sb->dZoneInsert.cache[0];
+
+        if ((stat = soWriteCacheCluster(p_sb->dTail, &datacluster)) != 0)
+            return stat;
+    }
     
-    if((stat = soWriteCacheCluster(p_sb->dTail,&datacluster)) !=0)
-      return stat;
-  }
-  
-  int k;
-  for(k = 0; k < p_sb->dZoneInsert.cacheIdx; k++){
-    if(k == 0){
-      NFClt =  p_sb->dZoneStart + p_sb->dZoneInsert.cache[0]*BLOCKS_PER_CLUSTER;
-      if((stat = soReadCacheCluster(NFClt,&datacluster)) != 0)
-        return stat;
-      datacluster.prev = p_sb->dZoneInsert.cache[k-1];
-      if((stat = soWriteCacheCluster(NFClt,&datacluster)) != 0)
-        return stat;
-    } else {
-      NFClt = p_sb->dZoneStart + p_sb->dZoneInsert.cache[k] * BLOCKS_PER_CLUSTER;
-      if((stat = soReadCacheCluster(NFClt,&datacluster)) != 0)
-        return stat;
-      datacluster.prev = p_sb->dZoneInsert.cache[k-1];
-      if((stat = soWriteCacheCluster(NFClt,&datacluster)) != 0)
-        return stat;
+    /* Empty dZoneInsert cache
+     * 1- the first cache position .previous of the cache is connected to dTail
+     * 2- connect data cluster .prev and .next in the cache array to each other
+     * 3- connect the last cache position .next to NULL_CLUSTER
+     * 4- update dTail information
+     */
+    for (k = 0; k < p_sb->dZoneInsert.cacheIdx; k++) {
+        
+        // if first position of the cache
+        if (k == 0) {
+            NFClt = p_sb->dZoneStart + p_sb->dZoneInsert.cache[0] * BLOCKS_PER_CLUSTER;
+            
+            if ((stat = soReadCacheCluster(NFClt, &datacluster)) != 0)
+                return stat;
+            
+            datacluster.prev = p_sb->dTail;
+            
+            if ((stat = soWriteCacheCluster(NFClt, &datacluster)) != 0)
+                return stat;
+        } else {
+            NFClt = p_sb->dZoneStart + p_sb->dZoneInsert.cache[k] * BLOCKS_PER_CLUSTER;
+            
+            if ((stat = soReadCacheCluster(NFClt, &datacluster)) != 0)
+                return stat;
+            
+            datacluster.prev = p_sb->dZoneInsert.cache[k - 1];
+            
+            if ((stat = soWriteCacheCluster(NFClt, &datacluster)) != 0)
+                return stat;
+        }
+        // for all the cache positions except the first and last
+        if (k != (p_sb->dZoneInsert.cacheIdx - 1)) {
+            NFClt = p_sb->dZoneStart + p_sb->dZoneInsert.cache[k] * BLOCKS_PER_CLUSTER;
+            
+            if ((stat = soReadCacheCluster(NFClt, &datacluster)) != 0)
+                return stat;
+            
+            datacluster.next = p_sb->dZoneInsert.cache[k + 1];
+            
+            if ((stat = soWriteCacheCluster(NFClt, &datacluster)) != 0)
+                return stat;
+        } else { // for the last cache position
+            NFClt = p_sb->dZoneStart + p_sb->dZoneInsert.cache[k] * BLOCKS_PER_CLUSTER;
+            
+            if ((stat = soReadCacheCluster(NFClt, &datacluster)) != 0)
+                return stat;
+            
+            datacluster.next = NULL_CLUSTER;
+            
+            if ((stat = soWriteCacheCluster(NFClt, &datacluster)) != 0)
+                return stat;
+        }
     }
-    if(k != (p_sb->dZoneInsert.cacheIdx -1)){
-      NFClt =  p_sb->dZoneStart + p_sb->dZoneInsert.cache[k]*BLOCKS_PER_CLUSTER;
-      if((stat = soReadCacheCluster(NFClt,&datacluster)) != 0)
+
+    // point dTail to the last dZoneInsert cache position
+    p_sb->dTail = p_sb->dZoneInsert.cache[p_sb->dZoneInsert.cacheIdx - 1];
+
+    // check if wasn't any space left
+    if (p_sb->dHead == NULL_CLUSTER)
+        p_sb->dHead = p_sb->dZoneInsert.cache[0];
+
+    // empty all cache positions to NULL_CLUSTER...
+    for (k = 0; k < p_sb->dZoneInsert.cacheIdx; k++)
+        p_sb->dZoneInsert.cache[k] = NULL_CLUSTER;
+
+    // ...and reset cache position
+    p_sb->dZoneInsert.cacheIdx = 0;
+
+    // save all super block changes
+    if ((stat = soStoreSuperBlock()) != 0)
         return stat;
-      datacluster.next = p_sb->dZoneInsert.cache[k+1];
-      if((stat = soWriteCacheCluster(NFClt,&datacluster)) != 0)
-        return stat;
-    } else {
-      NFClt =  p_sb->dZoneStart + p_sb->dZoneInsert.cache[k]*BLOCKS_PER_CLUSTER;
-      if((stat = soReadCacheCluster(NFClt,&datacluster)) != 0)
-        return stat;
-      datacluster.next = NULL_CLUSTER;
-    }
-  }
-  
-  p_sb->dTail = p_sb->dZoneInsert.cache[p_sb->dZoneInsert.cacheIdx - 1];
-  
-  if(p_sb->dHead == NULL_CLUSTER)
-    p_sb->dHead = p_sb->dZoneInsert.cache[0];
-  
-  for(k = 0; k < p_sb->dZoneInsert.cacheIdx; k++)
-    p_sb->dZoneInsert.cache[k] = NULL_CLUSTER;
-  
-  p_sb->dZoneInsert.cacheIdx = 0;
-  
-  // gravar as alteracoes feitas no super bloco
-  if((stat = soStoreSuperBlock()) != 0)
-    return stat;
-  
-  // se tudo OK retornar 0
-  return 0;
+    
+    return 0;
 }
