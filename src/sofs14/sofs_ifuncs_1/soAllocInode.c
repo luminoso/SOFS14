@@ -60,9 +60,9 @@
 int soAllocInode(uint32_t type, uint32_t* p_nInode) {
     soColorProbe(611, "07;31", "soAllocInode (%"PRIu32", %p)\n", type, p_nInode);
 
-    int stat;
-    uint32_t nBlk, offset;
-    SOSuperBlock *p_sb;
+    int stat;  // variavel para indicar o estado
+    uint32_t nBlk, offset; // numero de blocos e respectivo offset para poder aceder ao bloco
+    SOSuperBlock *p_sb;  // ponteiro para o superbloco
     SOInode *p_itable;  // ponteiro para o nó i a revervar
     uint32_t nextInode; // qual o inode que fica seguinte ao iHead
 
@@ -111,14 +111,11 @@ int soAllocInode(uint32_t type, uint32_t* p_nInode) {
      */
     if ((stat = soQCheckFCInode(&p_itable[offset])) != 0) { // significa que o inode nao está clean. é preciso "limpar"
         printf("\n numEro: %i \n iTotal: %i \n stat: %i\n",*p_nInode,p_sb->iTotal,stat);
-        printf("\ndirty???\n");
 
         // se não está clean, então só pode estar dirty
         if ((stat = soQCheckFDInode(p_sb, &p_itable[offset])) != 0)
-            printf("\n ola2 \n");
-        return stat;
+            return stat;
 
-        printf("\ninode sujo? limpo? ");
         // limpeza do inode
         p_itable[offset].mode = 0;
         p_itable[offset].owner = 0; // fica sem dono
@@ -141,20 +138,18 @@ int soAllocInode(uint32_t type, uint32_t* p_nInode) {
 
         // e agora, está clean?
         if ((stat = soQCheckFDInode(p_sb, &p_itable[offset])) != 0) {
-            printf("nao está bem limpo foda-se\n");
             return stat;
         }
-        printf("clean!\n");
     }
 
     // atribuição dos valores certos ao inode
-    p_itable[offset].mode = type;
-    p_itable[offset].owner = getuid();
-    p_itable[offset].group = getgid();
+    p_itable[offset].mode = type;           // se e directorio, ficheiro 
+    p_itable[offset].owner = getuid();   // retorna o id do utilizador
+    p_itable[offset].group = getgid();      // retorna o id do grupo
     p_itable[offset].vD1.aTime = p_itable[offset].vD2.mTime = time(NULL);
 
     *p_nInode = p_sb->iHead; /* 1º elemento*/
-    printf("\nolá!!\n");
+
 
     // se tiver apenas 1 elemento
     if (p_sb->iFree == 1) {
@@ -164,6 +159,7 @@ int soAllocInode(uint32_t type, uint32_t* p_nInode) {
 
         if ((stat = soConvertRefInT(nextInode, &nBlk, &offset)) != 0)
             return stat;
+
         p_itable = soGetBlockInT();
 
         p_itable[offset].vD2.prev = NULL_INODE; // aponta para a terra
