@@ -12,6 +12,7 @@ var files =
     [ "sofs_datacluster.h", "sofs__datacluster_8h.html", "sofs__datacluster_8h" ],
     [ "sofs_direntry.h", "sofs__direntry_8h.html", "sofs__direntry_8h" ],
     [ "sofs_ifuncs_1.h", "sofs__ifuncs__1_8h.html", "sofs__ifuncs__1_8h" ],
+    [ "sofs_ifuncs_2.h", "sofs__ifuncs__2_8h.html", "sofs__ifuncs__2_8h" ],
     [ "sofs_inode.h", "sofs__inode_8h.html", "sofs__inode_8h" ],
     [ "sofs_probe.h", "sofs__probe_8h.html", "sofs__probe_8h" ],
     [ "sofs_rawdisk.h", "sofs__rawdisk_8h.html", "sofs__rawdisk_8h" ],
