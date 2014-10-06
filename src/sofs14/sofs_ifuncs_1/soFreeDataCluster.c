@@ -65,7 +65,6 @@ int soFreeDataCluster(uint32_t nClust) {
 
     // check if the data cluster number is in the right range
     if (nClust > p_sb->dZoneTotal) return -EINVAL;
-    if (nClust <= 0) return -EINVAL;
 
     // calculate data cluster physical position
     NFClt = p_sb->dZoneStart + nClust * BLOCKS_PER_CLUSTER;
@@ -77,6 +76,7 @@ int soFreeDataCluster(uint32_t nClust) {
     // check if the data cluster was allocated
     if (datacluster.stat == NULL_INODE) return -EDCNALINVAL;
 
+    // check of the allocation status of a data cluster
     if ((stat = soQCheckStatDC(p_sb, nClust, &dc_status)) != 0)
         return stat;
 
