@@ -320,8 +320,8 @@ static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itota
     p_sb->magic = 0xFFFF;
     p_sb->version = VERSION_NUMBER;
     
+    unsigned int l=0;                                     // contador posicao no array de caracteres
     
-    unsigned int l=0;
     while(name[l]!='\0' && l < PARTITION_NAME_SIZE){
 	p_sb->name[l] = name[l];
 	l++;
@@ -346,7 +346,7 @@ static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itota
     p_sb->dZoneFree = nclusttotal - 1;                    // a raiz ocupa um bloco
     p_sb->dZoneRetriev.cacheIdx = DZONE_CACHE_SIZE;
     
-    unsigned int i;
+    unsigned int i;                                       // variavel contador para o tamanho da cache
     
     for(i = 0; i < DZONE_CACHE_SIZE; i++)
 	p_sb->dZoneRetriev.cache[i] = p_sb->dZoneInsert.cache[i] = NULL_CLUSTER;
@@ -358,7 +358,7 @@ static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itota
     for(i = 0; i < RESERV_AREA_SIZE; i++)
 	p_sb->reserved[i] = 0xee;                         // 0xEE foi sugerido pelo professor
 	
-    int stat;
+    int stat;                                             // controlo de retorno da funcao
     
     if( (stat = soStoreSuperBlock()) != 0)
 	return stat;
@@ -374,7 +374,7 @@ static int fillInSuperBlock (SOSuperBlock *p_sb, uint32_t ntotal, uint32_t itota
 static int fillInINT (SOSuperBlock *p_sb)
 {
     int stat, i, j;                                       // i precorrer todos os inodes, j referencias indirectas
-    uint32_t nBlk, offset;                                // nBlk bloco do nó i, offset do inode em relacao ao bloco
+    uint32_t nBlk, offset;                                // numero bloco do nó i e o offset para a sua posicao
     SOInode *p_itable;                                    // ponteiro para a tabela de inodes
     SODataClust dc;                                       // datacluster para calcular o size de um dir entry
     
@@ -508,7 +508,7 @@ static int fillInRootDir (SOSuperBlock *p_sb)
 {
     SODataClust NoRaiz;                                   // criacao do nó raiz que vamos escrever
     
-    int i,k;
+    int i,k;                                              // variaveis contadoras referencias directas e nome
     for(i = 0; i < DPC ; i++){
 	NoRaiz.info.de[i].nInode = NULL_INODE;
 	for(k = 0; k < MAX_NAME + 1 ; k++){
@@ -527,7 +527,7 @@ static int fillInRootDir (SOSuperBlock *p_sb)
     NoRaiz.info.de[1].nInode = 0;
     
     // gravar o nó raiz
-    int stat;
+    int stat;                                             // controlo de retorno da funcao
     if( (stat = soWriteCacheCluster(p_sb->dZoneStart,&NoRaiz)) != 0)
 	return stat;
     
@@ -550,7 +550,7 @@ static int fillInGenRep (SOSuperBlock *p_sb, int zero)
      * NFClt = dzone_start + NLClt * BLOCKS_PER_CLUSTER;
      * (SOFS14.pdf, pagina 10)
      */
-    int stat;
+    int stat;                                             // controlo de retorno da funcao
     SODataClust datacluster;                              // datacluster para o qual vamos escrever informacoes
     uint32_t NFClt, clustercount;                         // NFCLt posicao do cluster, clustercount contador de clusters
     
