@@ -64,7 +64,7 @@ int soAllocDataCluster (uint32_t nInode, uint32_t *p_nClust)
 {
 	soColorProbe (613, "07;33", "soAllocDataCluster (%"PRIu32", %p)\n", nInode, p_nClust);
 
-	int stat;
+	int stat; // variavel para o estado de erro
 	uint32_t nBlock, offset, nClust, clusterStat; //variaveis para localizar o inode pretendido, e o cluster, contem variavel extra usada no teste de consistencia do header do cluster
 	SOSuperBlock *p_sb; //ponteiro para o superbloco
 	SOInode *p_inode; // ponteiro para o inode que vai ser reservado o cluster
@@ -163,7 +163,7 @@ int soAllocDataCluster (uint32_t nInode, uint32_t *p_nClust)
 
 int soReplenish (SOSuperBlock *p_sb)
 {
-  int stat, nctt, n; // stat = variavel para o estado: nctt = para o numero de clusters a transmitir; n = usada nos for's
+  int stat, nctt, n; // stat = variavel para o estado de erro; nctt = para o numero de clusters a transmitir; n = usada nos for's
   SODataClust *p_cluster; // ponteiro para manipulacao de um cluster
   uint32_t nLCluster; // variavel para atribuir ao numero logico do proximo cluster a manipular
 
