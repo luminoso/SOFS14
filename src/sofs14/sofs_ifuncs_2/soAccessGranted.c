@@ -1,7 +1,7 @@
 /**
  *  \file soAccessGranted.c (implementation file)
  *
- *  \author
+ *  \author Guilherme Cardoso - 45726
  */
 
 #include <stdio.h>
@@ -32,7 +32,7 @@
 
 /* allusion to internal function */
 
-int soReadInode (SOInode *p_inode, uint32_t nInode, uint32_t status);
+int soReadInode(SOInode *p_inode, uint32_t nInode, uint32_t status);
 
 /**
  *  \brief Check the inode access rights against a given operation.
@@ -60,11 +60,62 @@ int soReadInode (SOInode *p_inode, uint32_t nInode, uint32_t status);
  *  \return -<em>other specific error</em> issued by \e lseek system call
  */
 
-int soAccessGranted (uint32_t nInode, uint32_t opRequested)
-{
-  soColorProbe (514, "07;31", "soAccessGranted (%"PRIu32", %"PRIu32")\n", nInode, opRequested);
+int soAccessGranted(uint32_t nInode, uint32_t opRequested) {
+    soColorProbe(514, "07;31", "soAccessGranted (%"PRIu32", %"PRIu32")\n", nInode, opRequested);
 
-  /* insert your code here */
+    int stat; // function return status control
+    uint32_t nBlk, offset; // inode block position and offset
+    SOInode *p_itable; // pointer to inode table for nBlk block position
+    SOSuperBlock *p_sb; // pointer to the Super Block
+    unsigned int owner, group, other; // owner, group and other permissions
 
-  return 0;
+    // check permissions range
+    if (opRequested > 7 || opRequested == 0) return -EINVAL;
+
+    // load super block
+    if ((stat = soLoadSuperBlock()) != 0)
+        return stat;
+
+    // get super block pointer
+    p_sb = soGetSuperBlock();
+
+    // check if requested inode is out of range
+    if (nInode > p_sb->iTotal)
+        return -EINVAL;
+
+    // convert inode number to its block position and offset
+    if ((stat = soConvertRefInT(nInode, &nBlk, &offset)) != 0)
+        return stat;
+
+    // get pointer to loaded inode table in nBlk block position
+    if ((stat = soLoadBlockInT(nBlk)) != 0)
+        return 0;
+
+    p_itable = soGetBlockInT();
+
+    //check if inode is in use
+    if ((p_itable[offset].mode ^ 0 << 12) == 0) return -EINVAL;
+
+    // check if inode in use is consistent
+    if ((stat = soQCheckInodeIU(p_sb, &p_itable[offset])) != 0)
+        return stat;
+
+    owner = (p_itable[offset].mode >> 6) & 0x0007;
+    group = (p_itable[offset].mode >> 3) & 0x0007;
+    other = p_itable[offset].mode & 0x0007;
+
+    if (getuid() == 0) {
+        // root permissions
+        if ((opRequested & (R | W)) > 0) return 0;
+        if ((opRequested & X) > 0) return 0;
+        return -EACCES;
+    } else if (getuid() == p_itable[offset].owner) {
+        if ((opRequested & owner) == opRequested) return 0;
+    } else if (getuid() == p_itable[offset].group) {
+        if ((opRequested & group) == opRequested) return 0;
+    } else {
+        if ((opRequested & other) == opRequested) return 0;
+    }
+
+    return -EACCES;
 }
