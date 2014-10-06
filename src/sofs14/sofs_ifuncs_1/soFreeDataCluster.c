@@ -64,7 +64,7 @@ int soFreeDataCluster(uint32_t nClust) {
     p_sb = soGetSuperBlock();
 
     // check if the data cluster number is in the right range
-    if (nClust > p_sb->dZoneTotal) return -EINVAL;
+    if (nClust > p_sb->dZoneTotal || nClust == 0 ) return -EINVAL;
 
     // calculate data cluster physical position
     NFClt = p_sb->dZoneStart + nClust * BLOCKS_PER_CLUSTER;
