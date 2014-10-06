@@ -1,7 +1,7 @@
 /**
  *  \file soAllocInode.c (implementation file)
  *
- *  \author
+ *  \author  Gabriel Vieira - 68021
  */
 
 #include <stdio.h>
