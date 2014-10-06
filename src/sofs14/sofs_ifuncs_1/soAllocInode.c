@@ -116,7 +116,7 @@ int soAllocInode(uint32_t type, uint32_t* p_nInode) {
         if ((stat = soQCheckFDInode(p_sb, &p_itable[offset])) != 0)
             return stat;
 
-        // limpeza do inode
+        /* limpeza do inode
         p_itable[offset].mode = 0;
         p_itable[offset].owner = 0; // fica sem dono
         p_itable[offset].group = 0; // fica sem grupo
