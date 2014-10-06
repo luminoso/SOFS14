@@ -50,45 +50,47 @@
 int soFreeInode(uint32_t nInode) {
     soColorProbe(612, "07;31", "soFreeInode (%"PRIu32")\n", nInode);
 
-    int stat;
-    SOSuperBlock *p_sb;
-    SOInode *p_itable;
-    uint32_t nBlk, offset;
+    int stat; // variavel de retorno de status
+    SOSuperBlock *p_sb; // ponteiro super bloco
+    SOInode *p_itable; // ponteiro tabela inodes
+    uint32_t nBlk, offset; // numero do bloco e offset dentro do bloco
 
-    /* Carregar super bloco */
+    // Carregar super bloco 
     if ((stat = soLoadSuperBlock()) != 0)
         return stat;
 
+    // Ler Super Bloco 
     p_sb = soGetSuperBlock();
 
-    /* Verificar os parametros do nInode */
+    // Verificar os parametros do nInode 
     if (nInode <= 0 || nInode >= p_sb->iTotal)
         return -EINVAL;
 
-    /* Verify iNode Table inconsistency */
+    // Verificar inconsistencia da tabela iNode  
     if ((stat = soQCheckInT(p_sb)) != 0)
         return stat;
 
-    /* Converter o numero do nó-i nInode no numero do bloco e seu offset */
+    // Converter o numero do nó-i nInode no numero do bloco e seu offset 
     if ((stat = soConvertRefInT(nInode, &nBlk, &offset)) != 0)
         return stat;
 
-    /* Carrega o conteudo do um bloco especifico para uma tabela de inodes */
+    // Carrega o conteudo do um bloco especifico para uma tabela de inodes 
     if ((stat = soLoadBlockInT(nBlk)) != 0)
         return stat;
     
+    //Ler tabela Inodes
     p_itable = soGetBlockInT();
     
     // Verificar se é um no-i free está livre, mas em dirty-state
     if ((stat = soQCheckInodeIU(p_sb,&p_itable[offset])) != 0)
         return stat;
 
-    /* Se estiver vazia */
+    // Se estiver vazia 
     if (p_sb->iFree == 0) {
         p_itable[offset].mode |= INODE_FREE;
         p_itable[offset].vD2.prev = p_itable[offset].vD1.next = NULL_INODE;
         p_sb->iHead = p_sb->iTail = nInode;
-    } else { /* Se a lista tem pelo menos 1 elemento */
+    } else { // Se a lista tem pelo menos 1 elemento
         p_itable[offset].vD2.prev = p_sb->iTail;
         p_itable[offset].vD1.next = NULL_INODE;
         p_itable[offset].mode |= INODE_FREE;
@@ -96,7 +98,7 @@ int soFreeInode(uint32_t nInode) {
         if ((stat = soStoreBlockInT()) != 0)
 	   return stat;
 
-        /* Converter iTail no seu numero de bloco e seu offset */
+        // Converter iTail no seu numero de bloco e seu offset 
         if ((stat = soConvertRefInT(p_sb->iTail, &nBlk, &offset)) != 0)
             return stat;
 
@@ -111,11 +113,11 @@ int soFreeInode(uint32_t nInode) {
 
     p_sb->iFree += 1;
 
-    /* Gravar o super bloco */
+    // Gravar o super bloco 
     if ((stat = soStoreSuperBlock()) != 0)
         return stat;
 
-    /* Gravar tabela de Inodes */
+    // Gravar tabela de Inodes 
     if ((stat = soStoreBlockInT()) != 0)
         return stat;
 
