@@ -63,7 +63,7 @@ int soFreeInode(uint32_t nInode) {
     p_sb = soGetSuperBlock();
 
     // Verificar os parametros do nInode 
-    if (nInode = 0 || nInode >= p_sb->iTotal)
+    if (nInode == 0 || nInode >= p_sb->iTotal)
         return -EINVAL;
 
     // Verificar inconsistencia da tabela iNode  
