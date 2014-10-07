@@ -84,7 +84,7 @@ int soAccessGranted(uint32_t nInode, uint32_t opRequested) {
         return -EINVAL;
 
     // convert inode number to its block position and offset
-    if ((stat = soConvertRefInT(nInode, &nBlk, &offset)) != 0)
+    if ((stat = soConvertRefInT(nInode, & nBlk, &offset)) != 0)
         return stat;
 
     // get pointer to loaded inode table in nBlk block position
@@ -95,27 +95,51 @@ int soAccessGranted(uint32_t nInode, uint32_t opRequested) {
 
     //check if inode is in use
     if ((p_itable[offset].mode ^ 0 << 12) == 0) return -EINVAL;
+    //if ((((p_itable[offset].mode >> 12) & 0x1) ^ 0) == 0 ) return -EINVAL;
 
     // check if inode in use is consistent
     if ((stat = soQCheckInodeIU(p_sb, &p_itable[offset])) != 0)
         return stat;
 
-    owner = (p_itable[offset].mode >> 6) & 0x0007;
-    group = (p_itable[offset].mode >> 3) & 0x0007;
-    other = p_itable[offset].mode & 0x0007;
+    // end of validations
+
+    /* align owner, group and other permissions bits to right and apply a mask
+     * to the first 3 bits of each group 
+     * 
+     *       |owner|group|other|
+     *  bit: |8|7|6|5|4|3|2|1|0|
+     * perm: |r|w|x|r|w|x|r|w|x|
+     * 
+     */
+
+    owner = (p_itable[offset].mode >> 6) & 0x7;
+    group = (p_itable[offset].mode >> 3) & 0x7;
+    other = p_itable[offset].mode & 0x7;
 
     if (getuid() == 0) {
         // root permissions
+
+        // check if requesting for read or write permissions
         if ((opRequested & (R | W)) > 0) return 0;
+
+        // check if requesting execution permissions
         if ((opRequested & X) > 0) return 0;
+
         return -EACCES;
+
     } else if (getuid() == p_itable[offset].owner) {
+        // check it permissions match "owner" permissions 
         if ((opRequested & owner) == opRequested) return 0;
+
     } else if (getuid() == p_itable[offset].group) {
+        // check it permissions match "group" permissions 
         if ((opRequested & group) == opRequested) return 0;
+
     } else {
+        // check it permissions match "other" permissions 
         if ((opRequested & other) == opRequested) return 0;
     }
 
+    // if any of permissions access fail, don't grant access
     return -EACCES;
 }
