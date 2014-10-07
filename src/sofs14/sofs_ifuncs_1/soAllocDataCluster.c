@@ -65,10 +65,10 @@ int soAllocDataCluster (uint32_t nInode, uint32_t *p_nClust)
 	soColorProbe (613, "07;33", "soAllocDataCluster (%"PRIu32", %p)\n", nInode, p_nClust);
 
 	int stat; // variavel para o estado de erro
-	uint32_t nBlock, offset, nClust, clusterStat; //variaveis para localizar o inode pretendido, e o cluster, contem variavel extra usada no teste de consistencia do header do cluster
+	uint32_t nBlock, offset, nClust, clusterStat, NFClt; //variaveis para localizar o inode pretendido, e o cluster, contem variavel extra usada no teste de consistencia do header do cluster e outra para calcular o numero fisico do bloco
 	SOSuperBlock *p_sb; //ponteiro para o superbloco
 	SOInode *p_inode; // ponteiro para o inode que vai ser reservado o cluster
-  SODataClust *p_cluster; //ponteiro para o cluster que vai ser reservado
+  SODataClust cluster; //ponteiro para o cluster que vai ser reservado
 
   //carregar o super bloco
 	if((stat = soLoadSuperBlock()) != 0)
@@ -76,6 +76,11 @@ int soAllocDataCluster (uint32_t nInode, uint32_t *p_nClust)
 
 	p_sb = soGetSuperBlock();
 
+  if((stat = soQCheckSuperBlock(p_sb)) != 0)
+    return stat;
+
+  if((stat = soQCheckDZ(p_sb)) != 0)
+    return stat;
 
   //teste se o inode pretendido de encontra dentro dos valores possiveis e se o ponteiro nao vem com NULL_CLUSTER associado
 	if(nInode <= 0  || nInode > p_sb->iTotal -1 || p_nClust == NULL)
@@ -84,7 +89,6 @@ int soAllocDataCluster (uint32_t nInode, uint32_t *p_nClust)
   //verificar se ha clusters livres
   if(p_sb->dZoneFree == 0)
   	return -ENOSPC;
-
 
   //carregar inode pretendido
   if((stat = soConvertRefInT(nInode, &nBlock, &offset)) != 0)
@@ -122,24 +126,23 @@ int soAllocDataCluster (uint32_t nInode, uint32_t *p_nClust)
 	//ir buscar o cluster nClust. nClust precisa de ser o numero fisico
   //relação entre numero fisico e numero logico
   //NFClt = dzone_start + NLClt * BLOCKS_PER_CLUSTER;
-  if((stat = soLoadDirRefClust(p_sb->dZoneStart + (nClust * BLOCKS_PER_CLUSTER))) != 0)
+  NFClt = p_sb->dZoneStart + nClust * BLOCKS_PER_CLUSTER;
+
+  if ((stat = soReadCacheCluster(NFClt, &cluster)) != 0)
     return stat;
 
-  p_cluster = soGetDirRefClust();
-
-
-  p_cluster->prev = p_cluster->next = NULL_CLUSTER;
-  p_cluster->stat = nInode;
+  cluster.prev = cluster.next = NULL_CLUSTER;
+  cluster.stat = nInode;
   
   //atribuir o numero do cluster ao ponteiro fornecido nos argumentos para esse efeito
   *p_nClust = nClust;
 
   //testar se o stat do cluster indica o inode pretendido
-  if(p_cluster->stat != nInode)
+  if(cluster.stat != nInode)
     return -EWGINODENB;
 
   //voltar a guardar o cluster
-  if((stat = soStoreDirRefClust()) != 0)
+  if ((stat = soWriteCacheCluster(NFClt, &cluster)) != 0)
     return stat;
 
   //voltar a guardar o super bloco
@@ -164,8 +167,8 @@ int soAllocDataCluster (uint32_t nInode, uint32_t *p_nClust)
 int soReplenish (SOSuperBlock *p_sb)
 {
   int stat, nctt, n; // stat = variavel para o estado de erro; nctt = para o numero de clusters a transmitir; n = usada nos for's
-  SODataClust *p_cluster; // ponteiro para manipulacao de um cluster
-  uint32_t nLCluster; // variavel para atribuir ao numero logico do proximo cluster a manipular
+  SODataClust cluster; // ponteiro para manipulacao de um cluster
+  uint32_t nLCluster, NFClt; // variavel para atribuir ao numero logico do proximo cluster a manipular, e variavel para calcular o numero fisico do bloco
 
 
   //teste de o ponteiro para o super bloco nao é NULL
@@ -182,28 +185,28 @@ int soReplenish (SOSuperBlock *p_sb)
 
   for(n = DZONE_CACHE_SIZE - nctt; n < DZONE_CACHE_SIZE; n++){
 
+
     if(nLCluster == NULL_CLUSTER)
       break;
 
-    //carregar o cluster nLClust usando o seu numero fisico
-    if((stat = soLoadDirRefClust(p_sb->dZoneStart + (nLCluster * BLOCKS_PER_CLUSTER))) != 0)
-      return stat;
+    NFClt = p_sb->dZoneStart + nLCluster * BLOCKS_PER_CLUSTER;
 
-    p_cluster = soGetDirRefClust();
+    //carregar o cluster nLClust usando o seu numero fisico
+    if ((stat = soReadCacheCluster(NFClt, &cluster)) != 0)
+      return stat;
 
     //inseri-lo na cache de retirada
     p_sb->dZoneRetriev.cache[n] = nLCluster;
 
     //avancar para o proximo cluster livre
-    nLCluster = p_cluster->next;
+    nLCluster = cluster.next;
 
     //como o cluster esta referenciado na cache de retirada do super bloco o next e prev sao NULL_CLUSTER
-    p_cluster->prev = p_cluster->next = NULL_CLUSTER;
+    cluster.prev = cluster.next = NULL_CLUSTER;
 
 
-    if((stat = soStoreDirRefClust()) != 0)
+    if ((stat = soWriteCacheCluster(NFClt, &cluster)) != 0)
       return stat;
-
   }
 
   //se o for anterior nao chegou ao fim por nao haverem mais clusters livres na zona de dados, eles estao na cache de insercao
@@ -216,36 +219,34 @@ int soReplenish (SOSuperBlock *p_sb)
     nLCluster = p_sb->dHead;
 
     for( ; n < DZONE_CACHE_SIZE; n++){
+      
+      NFClt = p_sb->dZoneStart + nLCluster * BLOCKS_PER_CLUSTER;
 
-      if(nLCluster == NULL_CLUSTER)
-        break;
-
-      if((stat = soLoadDirRefClust(p_sb->dZoneStart + (nLCluster * BLOCKS_PER_CLUSTER))) != 0)
+      if ((stat = soReadCacheCluster(NFClt, &cluster)) != 0)
         return stat;
-
-      p_cluster = soGetDirRefClust();
 
       p_sb->dZoneRetriev.cache[n] = nLCluster;
-      nLCluster = p_cluster->next;
-      p_cluster->prev = p_cluster->next = NULL_CLUSTER;
+      nLCluster = cluster.next;
+      cluster.prev = cluster.next = NULL_CLUSTER;
 
-      if((stat = soStoreDirRefClust()) != 0)
+      if ((stat = soWriteCacheCluster(NFClt, &cluster)) != 0)
         return stat;
+
     }
   }
 
   //se no fim ainda houver mais clusters o proximo tem de deixar de refenciar o anterior pois ele esta na cache de retirada
   if(nLCluster != NULL_CLUSTER){
 
-    if((stat = soLoadDirRefClust(p_sb->dZoneStart + (nLCluster * BLOCKS_PER_CLUSTER))) != 0)
+    NFClt = p_sb->dZoneStart + nLCluster * BLOCKS_PER_CLUSTER;
+
+    if ((stat = soReadCacheCluster(NFClt, &cluster)) != 0)
       return stat;
 
-    p_cluster = soGetDirRefClust();
+    cluster.prev = NULL_CLUSTER;
 
-    p_cluster->prev = NULL_CLUSTER;
-
-    if((stat = soStoreDirRefClust()) != 0)
-        return stat;
+    if ((stat = soWriteCacheCluster(NFClt, &cluster)) != 0)
+      return stat;
   }
 
   //actualizar o indice da cache de retirada
@@ -257,6 +258,10 @@ int soReplenish (SOSuperBlock *p_sb)
 
   if(nLCluster == NULL_CLUSTER)
     p_sb->dTail = NULL_CLUSTER;
-  
+
+
+  if((stat = soStoreSuperBlock()) != 0)
+    return stat;
+
   return 0;
 }
