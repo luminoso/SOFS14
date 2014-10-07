@@ -58,7 +58,7 @@ int soReadInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
   SOSuperBlock *p_sb;  // ponteiro para o super bloco 
   int stat;				// variavel para indicar  estado
   uint32_t nBlk, offset; // variável para o numero do bloco e seu offset
-  SOInode *p_itable; // variavel auxiliar para mais tarde aceder a uma posição da tabela de iNodes
+  SOInode *p_inode; // ponteiro para inode a ser escrito
 
   	 /* carregar super bloco */
   if((stat = soLoadSuperBlock()) != 0)
@@ -70,13 +70,19 @@ int soReadInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
   if((stat = soQCheckSuperBlock(p_sb)) != 0) /* quick check of the superblock metadata */
   	return stat;
 
-  	/* if the buffer pointer is NULL or the inode number is out of range or the inode status is invalid */
-  if(nInode >= p_sb->iTotal || nInode == NULL || nInode == 0)
+    /*If inode Table is consistency*/
+  if((stat = soQCheckInT()) != 0)
+    return stat;  
+
+  /*if the pointer t inode is not null*/
+  if(p_inode == NULL)
+    return -EINVAL;
+
+  	//if  nInode is within valid parameters
+  if(nInode <= 0 || nInode > p_sb->iTotal)
   	return -EINVAL;
 
-  	/* Check if inode is in use or if it's a free inode in dirty state */
-  //if(status != IUIN && status != FDIN)
-  	//return stat;
+
 
 	/* Convert the inode number which translates to an entry of the inode table */
   if((stat = soConvertRefInT(nInode, &nBlk, &offset)) != 0)
@@ -86,29 +92,43 @@ int soReadInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
   if((stat = soLoadBlockInT(nBlk)) != 0)
   	return stat;
 
-  	/* se lido correctamente vamos obter o ponteiro para ele*/
-  p_itable = soGetBlockInT(); 
-  p_inode = &p_itable[offset];
 
-   
+  //obtem o ponteiro para o bloco que contem o nóI*/
+  p_inode = soGetBlockInT();
 
-  /*se o nó inode livre no estado sujo está inconsistente*/
-  if((stat = soQCheckFDInode(p_sb, &p_itable[offset])) != 0){  
-    p_inode->vD1.aTime = time(NULL);
-  	return -EFDININVAL;
-  }
 
-  /* if the inode in use is inconsistent */
-  if((stat = soQCheckInodeIU(p_sb, &p_itable[offset])) != 0){  
-    p_inode->vD1.aTime = time(NULL);
-    return -EIUININVAL;      
-  }
-
-  /*if inode is in use status*/
+  //verifica se o nó em uso é inconsistente
   if(status == IUIN)
-  	p_inode->vD1.aTime = time(NULL);
+  {
+    if((stat = soQCheckInodeIU(p_sb, &p_inode[offset])) != 0)
+      return stat;
+  }
+    
+   // verifica se o nó I livre no estado sujo é insconsistente 
+  if(status == FDIN)
+  {
 
-  
+    if((stat = soQCheckFDInode(p_sb, &p_inode[offset])) != 0)
+      return stat;
+  }  
+
+  	/* se lido correctamente vamos obter o ponteiro para ele*/
+  //p_itable = soGetBlockInT(); 
+  //p_inode = &p_itable[offset];
+
+  //update the access time to the current time
+  p_inode[offset].vD1.aTime = time(NULL); 
+
+  /*guardar tabela de nós I*/
+  if( (stat = soStoreBlockInT()) != 0)
+    return stat;
+
+  /*guardar super bloco*/
+  if( (stat = soStoreSuperBlock()) != 0)
+    return stat;
+  /*if inode is in use status*/
+  /*if(status == IUIN)
+  	p_inode->vD1.aTime = time(NULL);*/
 
   return 0;
 }
