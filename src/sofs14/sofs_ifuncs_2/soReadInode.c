@@ -58,6 +58,7 @@ int soReadInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
   SOSuperBlock *p_sb;  // ponteiro para o super bloco 
   int stat;				// variavel para indicar  estado
   uint32_t nBlk, offset; // variável para o numero do bloco e seu offset
+  SOInode *p_itable; // variavel auxiliar para mais tarde aceder a uma posição da tabela de iNodes
 
   	 /* carregar super bloco */
   if((stat = soLoadSuperBlock()) != 0)
@@ -90,31 +91,16 @@ int soReadInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
   	return stat;
 
   	/* se lido correctamente vamos obter o ponteiro para ele*/
-  p_inode = soGetBlockInT();
-
-  /*p_inode[offset].mode = type;
-  p_inode[offset].owner = getuid();
-  p_inode[offset].group = getgid(); 
-  p_inode[offset].refCount = 0; 
-  p_inode[offset].size = 0; 
-  p_inode[offset].cluCount = 0; 
-  p_inode[offset].d[0] = 0;
-  int i;
-  for (i = 1; i < N_DIRECT; i++)
-  {
-    p_inode[offset].d[i] = NULL_INODE;               //inicializar todas as referencias a clusters a null
-  }
-
-  p_inode[offset].i1 = NULL_INODE;                     // referencias indirectas
-  p_inode[offset].i2 = NULL_INODE;*/
+  p_itable = soGetBlockInT(); 
+  p_inode = &p_itable[offset]; 
 
   /*se o nó inode livre no estado sujo está inconsistente*/
-  if((stat = soQCheckFDInode(p_sb, &p_inode[offset])) != 0) 
+  if((stat = soQCheckFDInode(p_sb, &p_itable[offset])) != 0) 
   	return -EFDININVAL;
 
   /*if inode is in use status*/
   if(status == IUIN)
-  	p_inode[offset].vD1.aTime = time(NULL);
+  	p_inode->vD1.aTime = time(NULL);
 
 
   return 0;
