@@ -1,7 +1,7 @@
 /**
  *  \file soReadInode.c (implementation file)
  *
- *  \author
+ *  \author Pedro Gabriel Fernandes Vieira
  */
 
 /* #define CLEAN_INODE */
@@ -53,9 +53,69 @@
 int soReadInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
 {
   soColorProbe (511, "07;31", "soReadInode (%p, %"PRIu32", %"PRIu32")\n", p_inode, nInode, status);
-
-
   /* insert your code here */
+
+  SOSuperBlock *p_sb;  // ponteiro para o super bloco 
+  int stat;				// variavel para indicar  estado
+  uint32_t nBlk, offset; // variável para o numero do bloco e seu offset
+
+  	 /* carregar super bloco */
+  if((stat = soLoadSuperBlock()) != 0)
+  	return stat;
+
+  p_sb = soGetSuperBlock(); /* ler super bloco */
+
+
+  if((stat = soQCheckSuperBlock(p_sb)) != 0) /* quick check of the superblock metadata */
+  	return stat;
+
+  	/* if the buffer pointer is NULL or the inode number is out of range or the inode status is invalid */
+  if(nInode >= p_sb->iTotal || nInode == NULL || nInode == 0)
+  	return -EINVAL;
+
+  /* if the inode in use is inconsistent */
+  //if((stat = soQCheckInodeIU(p_sb, &p_inode[offset])) != 0)  /*AQUI DA SEGMENTATION FAULT*/
+  	//return -EIUININVAL;  		
+
+  	/* Check if inode is in use or if it's a free inode in dirty state */
+  //if(status != IUIN && status != FDIN)
+  	//return stat;
+
+	/* Convert the inode number which translates to an entry of the inode table */
+  if((stat = soConvertRefInT(nInode, &nBlk, &offset)) != 0)
+  	return stat;
+
+	/*Carrega o conteudo do um bloco especifico da tabela de inodes*/
+  if((stat = soLoadBlockInT(nBlk)) != 0)
+  	return stat;
+
+  	/* se lido correctamente vamos obter o ponteiro para ele*/
+  p_inode = soGetBlockInT();
+
+  /*p_inode[offset].mode = type;
+  p_inode[offset].owner = getuid();
+  p_inode[offset].group = getgid(); 
+  p_inode[offset].refCount = 0; 
+  p_inode[offset].size = 0; 
+  p_inode[offset].cluCount = 0; 
+  p_inode[offset].d[0] = 0;
+  int i;
+  for (i = 1; i < N_DIRECT; i++)
+  {
+    p_inode[offset].d[i] = NULL_INODE;               //inicializar todas as referencias a clusters a null
+  }
+
+  p_inode[offset].i1 = NULL_INODE;                     // referencias indirectas
+  p_inode[offset].i2 = NULL_INODE;*/
+
+  /*se o nó inode livre no estado sujo está inconsistente*/
+  if((stat = soQCheckFDInode(p_sb, &p_inode[offset])) != 0) 
+  	return -EFDININVAL;
+
+  /*if inode is in use status*/
+  if(status == IUIN)
+  	p_inode[offset].vD1.aTime = time(NULL);
+
 
   return 0;
 }
