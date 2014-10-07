@@ -58,7 +58,7 @@ int soReadInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
   SOSuperBlock *p_sb;  // ponteiro para o super bloco 
   int stat;				// variavel para indicar  estado
   uint32_t nBlk, offset; // variável para o numero do bloco e seu offset
-  SOInode *p_inode; // ponteiro para inode a ser escrito
+  SOInode *pInode; // ponteiro para o inode a ser lido
 
   	 /* carregar super bloco */
   if((stat = soLoadSuperBlock()) != 0)
@@ -71,10 +71,10 @@ int soReadInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
   	return stat;
 
     /*If inode Table is consistency*/
-  if((stat = soQCheckInT()) != 0)
+  if((stat = soQCheckInT(p_sb)) != 0)
     return stat;  
 
-  /*if the pointer t inode is not null*/
+  /*verifica se o ponteiro para o noI que está a ser lido não é NULL*/
   if(p_inode == NULL)
     return -EINVAL;
 
@@ -94,13 +94,13 @@ int soReadInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
 
 
   //obtem o ponteiro para o bloco que contem o nóI*/
-  p_inode = soGetBlockInT();
+  pInode = soGetBlockInT();
 
 
   //verifica se o nó em uso é inconsistente
   if(status == IUIN)
   {
-    if((stat = soQCheckInodeIU(p_sb, &p_inode[offset])) != 0)
+    if((stat = soQCheckInodeIU(p_sb, &pInode[offset])) != 0)
       return stat;
   }
     
@@ -108,7 +108,7 @@ int soReadInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
   if(status == FDIN)
   {
 
-    if((stat = soQCheckFDInode(p_sb, &p_inode[offset])) != 0)
+    if((stat = soQCheckFDInode(p_sb, &pInode[offset])) != 0)
       return stat;
   }  
 
