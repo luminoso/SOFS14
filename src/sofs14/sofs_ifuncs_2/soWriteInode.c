@@ -10,7 +10,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include <string.h>
+#include <string.h>				//for mencpy()
 
 #include "sofs_probe.h"
 #include "sofs_superblock.h"
@@ -56,6 +56,7 @@ int soWriteInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
 	SOInode *p_in; // ponteiro para o inode a ser escrito
 	SOSuperBlock *p_sb; //ponteiro para o superbloco
 
+
 	//Loading the super block
  	if((stat = soLoadSuperBlock()) != 0)
 		return stat;
@@ -74,6 +75,9 @@ int soWriteInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
     if(p_inode == NULL)
     	return -EINVAL;
 
+   	if(status != IUIN && status != FDIN)
+   		return -EINVAL;
+
     //check nInode is within valid parameters
     if(!(nInode >0 && nInode < p_sb->iTotal))
     	return -EINVAL;
@@ -91,23 +95,28 @@ int soWriteInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
 
 
 	//Quick check of the inode in use consistency
-	if(status == IUIN)
+	if(status == IUIN){
 		if((stat = soQCheckInodeIU(p_sb, &p_in[offset])) != 0)
 			return stat;
-	
+
+		//copy the inode data to the inode we want
+		memcpy(&p_in[offset], p_inode, sizeof(SOInode));
+
+		//update the access time and modified time to the current time
+		p_in[offset].vD1.aTime = time(NULL);
+		p_in[offset].vD2.mTime = p_in[offset].vD1.aTime;
+	}
+
 
 	//Quick check of the inode in the dirty state consistency
-	if(status == FDIN)
+	if(status == FDIN){
 		if((stat = soQCheckFDInode(p_sb, &p_in[offset])) != 0)
 			return stat;
-  	
 
-	//copy the inode data to the inode we want
-	memcpy(&p_in[offset], p_inode, sizeof(SOInode));
-
-	//update the access time and modified time to the current time
-	p_in[offset].vD1.aTime = time(NULL);
-	p_in[offset].vD2.mTime = p_in[offset].vD1.aTime;
+		//copy the inode data to the inode we want
+		memcpy(&p_in[offset], p_inode, sizeof(SOInode));
+	}
+		
 
 	//store the inode back to the inode table
 	if( (stat = soStoreBlockInT()) != 0)
