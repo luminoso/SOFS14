@@ -74,10 +74,6 @@ int soReadInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
   if(nInode >= p_sb->iTotal || nInode == NULL || nInode == 0)
   	return -EINVAL;
 
-  /* if the inode in use is inconsistent */
-  //if((stat = soQCheckInodeIU(p_sb, &p_inode[offset])) != 0)  /*AQUI DA SEGMENTATION FAULT*/
-  	//return -EIUININVAL;  		
-
   	/* Check if inode is in use or if it's a free inode in dirty state */
   //if(status != IUIN && status != FDIN)
   	//return stat;
@@ -92,16 +88,27 @@ int soReadInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
 
   	/* se lido correctamente vamos obter o ponteiro para ele*/
   p_itable = soGetBlockInT(); 
-  p_inode = &p_itable[offset]; 
+  p_inode = &p_itable[offset];
+
+   
 
   /*se o nó inode livre no estado sujo está inconsistente*/
-  if((stat = soQCheckFDInode(p_sb, &p_itable[offset])) != 0) 
+  if((stat = soQCheckFDInode(p_sb, &p_itable[offset])) != 0){  
+    p_inode->vD1.aTime = time(NULL);
   	return -EFDININVAL;
+  }
+
+  /* if the inode in use is inconsistent */
+  if((stat = soQCheckInodeIU(p_sb, &p_itable[offset])) != 0){  
+    p_inode->vD1.aTime = time(NULL);
+    return -EIUININVAL;      
+  }
 
   /*if inode is in use status*/
   if(status == IUIN)
   	p_inode->vD1.aTime = time(NULL);
 
+  
 
   return 0;
 }
