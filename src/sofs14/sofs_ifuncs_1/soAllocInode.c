@@ -137,8 +137,8 @@ int soAllocInode(uint32_t type, uint32_t* p_nInode) {
         p_itable[offset].i1 = p_itable[offset].i2 = NULL_INODE;
 
         // e agora, está clean?
-        /* a limpeza do inode é insuficiente e/ou incorrecta. Provoca bug no ./ex1.sh se em seguida alocarmos todos os inodes que sobram
-         * com este if a funcao faz: (...)->14->15->"inode errado" sem if tem o comportamento certo: (...)->14->15->3->2->1->"no space left"
+         a limpeza do inode é insuficiente e/ou incorrecta. Provoca bug no ./ex1.sh se em seguida alocarmos todos os inodes que sobram
+          com este if a funcao faz: (...)->14->15->"inode errado" sem if tem o comportamento certo: (...)->14->15->3->2->1->"no space left"
         if ((stat = soQCheckFDInode(p_sb, &p_itable[offset])) != 0) {
             return stat;
         }
