@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 
+
 #include "sofs_probe.h"
 #include "sofs_superblock.h"
 #include "sofs_inode.h"
@@ -78,15 +79,16 @@ int soReadInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
   if(p_inode == NULL)
     return -EINVAL;
 
+  if(status != IUIN && status != FDIN)
+      return -EINVAL;
+
   	//if  nInode is within valid parameters
   if(nInode <= 0 || nInode > p_sb->iTotal)
   	return -EINVAL;
 
-
-
 	/* Convert the inode number which translates to an entry of the inode table */
   if((stat = soConvertRefInT(nInode, &nBlk, &offset)) != 0)
-  	return stat;
+  	 return stat;
 
 	/*Carrega o conteudo do um bloco especifico da tabela de inodes*/
   if((stat = soLoadBlockInT(nBlk)) != 0)
@@ -102,12 +104,14 @@ int soReadInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
   {
     if((stat = soQCheckInodeIU(p_sb, &pInode[offset])) != 0)
       return stat;
+
+     //update the access time to the current time
+    p_inode[offset].vD1.aTime = time(NULL); 
   }
     
    // verifica se o nó I livre no estado sujo é insconsistente 
   if(status == FDIN)
   {
-
     if((stat = soQCheckFDInode(p_sb, &pInode[offset])) != 0)
       return stat;
   }  
@@ -116,8 +120,7 @@ int soReadInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
   //p_itable = soGetBlockInT(); 
   //p_inode = &p_itable[offset];
 
-  //update the access time to the current time
-  p_inode[offset].vD1.aTime = time(NULL); 
+ 
 
   /*guardar tabela de nós I*/
   if( (stat = soStoreBlockInT()) != 0)
@@ -126,9 +129,7 @@ int soReadInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
   /*guardar super bloco*/
   if( (stat = soStoreSuperBlock()) != 0)
     return stat;
-  /*if inode is in use status*/
-  /*if(status == IUIN)
-  	p_inode->vD1.aTime = time(NULL);*/
+
 
   return 0;
 }
