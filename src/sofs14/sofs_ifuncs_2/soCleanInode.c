@@ -59,22 +59,44 @@ int soCleanInode (uint32_t nInode)
 {
     soColorProbe (513, "07;31", "soCleanInode (%"PRIu32")\n", nInode);
 
-    int stat;           // variavel de retorno de status
-    SOSuperBlock *p_sb; // ponteiro do tipo SOSuperBlock
+    int stat;               // return var status
+    SOSuperBlock *p_sb;     // pointer of type SOSuperBlock
+    SOInode *p_inode;       // pointer of type SOInode
+    uint32_t nBlk, offset;  // block number and offset of the inside block
 
-
-   
     /* any type of previous error on loading/storing the superblock data will disable the operation */
     if ((stat = soLoadSuperBlock()) != 0)
         return stat;
+    /* can return ELIBBAD, EBADF, EIO */
+
 
     /* get a pointer to the contents of the superblock */
     p_sb = soGetSuperBlock();
 
     /* if nInode is out of range */
-    if(nInode == 0 || nInode >= p_sb->iTotal)
+    if (nInode == 0 || nInode >= p_sb->iTotal)
         return -EINVAL;
-        
+
+
+    /* convert the inode number, which translates to an entry of the inode table,
+     * into the logical number and the offset of the block where it is stored
+     */
+    if ((stat = soConvertRefInT(nInode,&nBlk,&offset))!=0)
+        return stat; 
+
+    /* load the contents of a specific block of the table of inodes into internal storage */
+    if ((stat = soLoadBlockInT(nBlk)) != 0)
+        return stat;
+
+    /* get a pointer to the contents of a specific block of the table of inodes */
+    p_inode = soGetBlockInT();
+
+    /* quick check of a free inode in the dirty state */
+    if ((stat = soQCheckFDInode(p_sb, &p_inode[offset])) != 0)
+        return stat;
+    /* can return EFDININVAL, ELDCINIVAL, EDCINVAL */
+
+
 
 
     return 0;
