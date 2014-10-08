@@ -12,7 +12,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <sys/types.h>
-
+#include <string.h>
 
 #include "sofs_probe.h"
 #include "sofs_superblock.h"
@@ -83,7 +83,7 @@ int soReadInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
       return -EINVAL;
 
   	//if  nInode is within valid parameters
-  if(nInode <= 0 || nInode > p_sb->iTotal)
+  if(nInode >= p_sb->iTotal)
   	return -EINVAL;
 
 	/* Convert the inode number which translates to an entry of the inode table */
@@ -105,6 +105,7 @@ int soReadInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
     if((stat = soQCheckInodeIU(p_sb, &pInode[offset])) != 0)
       return stat;
 
+    //memcpy(p_inode, &pInode[offset], sizeof(SOInode));
      //update the access time to the current time
     p_inode[offset].vD1.aTime = time(NULL); 
   }
@@ -114,13 +115,15 @@ int soReadInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
   {
     if((stat = soQCheckFDInode(p_sb, &pInode[offset])) != 0)
       return stat;
+
+    //memcpy(p_inode, &pInode[offset], sizeof(SOInode));
   }  
 
   	/* se lido correctamente vamos obter o ponteiro para ele*/
   //p_itable = soGetBlockInT(); 
   //p_inode = &p_itable[offset];
 
- 
+  memcpy(p_inode, &pInode[offset], sizeof(SOInode));
 
   /*guardar tabela de nós I*/
   if( (stat = soStoreBlockInT()) != 0)
