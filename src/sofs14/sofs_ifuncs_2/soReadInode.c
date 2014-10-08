@@ -63,36 +63,36 @@ int soReadInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
 
   	 /* carregar super bloco */
   if((stat = soLoadSuperBlock()) != 0)
-  	return stat;
+  	 return stat;
 
   p_sb = soGetSuperBlock(); /* ler super bloco */
 
 
   if((stat = soQCheckSuperBlock(p_sb)) != 0) /* quick check of the superblock metadata */
-  	return stat;
+      return stat;
 
     /*If inode Table is consistency*/
   if((stat = soQCheckInT(p_sb)) != 0)
-    return stat;  
+      return stat;  
 
   /*verifica se o ponteiro para o noI que está a ser lido não é NULL*/
   if(p_inode == NULL)
-    return -EINVAL;
+      return -EINVAL;
 
   if(status != IUIN && status != FDIN)
       return -EINVAL;
 
   	//if  nInode is within valid parameters
   if(nInode >= p_sb->iTotal)
-  	return -EINVAL;
+  	  return -EINVAL;
 
 	/* Convert the inode number which translates to an entry of the inode table */
   if((stat = soConvertRefInT(nInode, &nBlk, &offset)) != 0)
-  	 return stat;
+      return stat;
 
 	/*Carrega o conteudo do um bloco especifico da tabela de inodes*/
   if((stat = soLoadBlockInT(nBlk)) != 0)
-  	return stat;
+  	  return stat;
 
 
   //obtem o ponteiro para o bloco que contem o nóI*/
@@ -102,19 +102,19 @@ int soReadInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
   //verifica se o nó em uso é inconsistente
   if(status == IUIN)
   {
-    if((stat = soQCheckInodeIU(p_sb, &pInode[offset])) != 0)
-      return stat;
+      if((stat = soQCheckInodeIU(p_sb, &pInode[offset])) != 0)
+          return stat;
 
     //memcpy(p_inode, &pInode[offset], sizeof(SOInode));
      //update the access time to the current time
-    pInode[offset].vD1.aTime = time(NULL); 
+      pInode[offset].vD1.aTime = time(NULL); 
   }
-    
+
    // verifica se o nó I livre no estado sujo é insconsistente 
   if(status == FDIN)
   {
-    if((stat = soQCheckFDInode(p_sb, &pInode[offset])) != 0)
-      return stat;
+      if((stat = soQCheckFDInode(p_sb, &pInode[offset])) != 0)
+          return stat;
 
     //memcpy(p_inode, &pInode[offset], sizeof(SOInode));
   }  
@@ -126,12 +126,12 @@ int soReadInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
   memcpy(p_inode, &pInode[offset], sizeof(SOInode));
 
   /*guardar tabela de nós I*/
-  if( (stat = soStoreBlockInT()) != 0)
-    return stat;
+  if((stat = soStoreBlockInT()) != 0)
+      return stat;
 
   /*guardar super bloco*/
   if( (stat = soStoreSuperBlock()) != 0)
-    return stat;
+      return stat;
 
 
   return 0;
