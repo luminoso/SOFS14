@@ -1,7 +1,7 @@
 /**
  *  \file soCleanInode.c (implementation file)
  *
- *  \author
+ *  \author Tiago Oliveira - 51687
  */
 
 #include <stdio.h>
@@ -57,9 +57,25 @@ int soReadInode (SOInode *p_inode, uint32_t nInode, uint32_t status);
 
 int soCleanInode (uint32_t nInode)
 {
-  soColorProbe (513, "07;31", "soCleanInode (%"PRIu32")\n", nInode);
+    soColorProbe (513, "07;31", "soCleanInode (%"PRIu32")\n", nInode);
 
-  /* insert your code here */
+    int stat;           // variavel de retorno de status
+    SOSuperBlock *p_sb; // ponteiro do tipo SOSuperBlock
 
-  return 0;
+
+   
+    /* any type of previous error on loading/storing the superblock data will disable the operation */
+    if ((stat = soLoadSuperBlock()) != 0)
+        return stat;
+
+    /* get a pointer to the contents of the superblock */
+    p_sb = soGetSuperBlock();
+
+    /* if nInode is out of range */
+    if(nInode == 0 || nInode >= p_sb->iTotal)
+        return -EINVAL;
+        
+
+
+    return 0;
 }
