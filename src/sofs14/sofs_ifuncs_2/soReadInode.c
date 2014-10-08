@@ -107,7 +107,7 @@ int soReadInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
 
     //memcpy(p_inode, &pInode[offset], sizeof(SOInode));
      //update the access time to the current time
-    p_inode[offset].vD1.aTime = time(NULL); 
+    pInode[offset].vD1.aTime = time(NULL); 
   }
     
    // verifica se o nó I livre no estado sujo é insconsistente 
