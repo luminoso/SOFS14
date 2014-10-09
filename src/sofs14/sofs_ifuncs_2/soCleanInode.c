@@ -77,7 +77,6 @@ int soCleanInode (uint32_t nInode)
     if (nInode == 0 || nInode >= p_sb->iTotal)
         return -EINVAL;
 
-
     /* convert the inode number, which translates to an entry of the inode table,
      * into the logical number and the offset of the block where it is stored
      */
@@ -91,12 +90,18 @@ int soCleanInode (uint32_t nInode)
     /* get a pointer to the contents of a specific block of the table of inodes */
     p_inode = soGetBlockInT();
 
-    /* quick check of a free inode in the dirty state */
-    if ((stat = soQCheckFDInode(p_sb, &p_inode[offset])) != 0)
-        return stat;
-    /* can return EFDININVAL, ELDCINIVAL, EDCINVAL */
 
+    /* teacher indication*/
+    soReadInode(p_inode,nInode,stat);
 
+    /* SEM EFEITO
+
+     * quick check of a free inode in the dirty state *
+     if ((stat = soQCheckFDInode(p_sb, &p_inode[offset])) != 0)
+     return stat;
+     * can return EFDININVAL, ELDCINIVAL, EDCINVAL *
+
+     */
 
 
     return 0;
