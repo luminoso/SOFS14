@@ -75,14 +75,15 @@ int soReadInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
   if((stat = soQCheckInT(p_sb)) != 0)
       return stat;  
 
-  /*verifica se o ponteiro para o noI que está a ser lido não é NULL*/
+  //check if the buffer pointer is NULL  
   if(p_inode == NULL)
       return -EINVAL;
 
+  //check if inode status is invalid  
   if(status != IUIN && status != FDIN)
       return -EINVAL;
 
-  	//if  nInode is within valid parameters
+  	//if  nInode is within valid parameters (if is out of range)
   if(nInode >= p_sb->iTotal)
   	  return -EINVAL;
 
