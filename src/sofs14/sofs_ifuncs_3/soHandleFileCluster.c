@@ -94,24 +94,58 @@ int soHandleFileCluster(uint32_t nInode, uint32_t clustInd, uint32_t op, uint32_
 
     int stat;
     SOSuperBlock *p_sb;
+    SOInode *p_inode;
+    uint32_t nBlk, offset;
 
     if ((stat = soLoadSuperBlock()))
         return stat;
 
     p_sb = soGetSuperBlock();
 
-    // check inode range
+    /* START OF VALIDATION */
 
-    // check cluster number range
+    /* if nInode is out of range */
+    if (nInode == 0 || nInode >= p_sb->iTotal)
+        return -EINVAL;
 
-    // check if op is valid
-    // if op is GET or ALLOC if p_poutval is null
-    // else set p_outVal to null
+    /* index (clustInd) to the list of direct references are out of range */
+    if (clustInd > MAX_FILE_CLUSTERS)
+        return -EINVAL;
 
-    // if op=GET|ALLOC|FREE|FREE_CLEAN check if nInode is in use and its type is valid
-    // if op=CLEAN check quick free dirty state
+    /* requested operation is invalid */
+    if (op < 0 || op > 4)
+        return -EINVAL;
     
-    SOInode *p_inode;
+    /* the pointer p_outVal is NULL when it should not be (GET / ALLOC) */
+    if ((op == GET || op == ALLOC) && p_outVal == NULL)       // duvida na comparacao do ponteiro, sera apenas NULL na comp.?
+        return -EINVAL;
+    
+    /* convert the inode number into the logical number */  
+    if (stat = soConvertRefInT(nInode, &nBlk, &offset) != 0)
+        return stat;
+
+    /* load the contents of a specific block of the table of inodes into internal storage*/
+    if (stat = soLoadBlockInt(nBlk) != 0)
+        return stat;
+
+    /* get a pointer to the contents of a specific block of the table of inodes */
+    p_inode = soGetBlockInT();
+
+    if(op == CLEAN)
+    {
+        /* quick check of a free inode in the dirty state */
+        if ((stat = soQCheckFDInode(p_sb, &p_inode[offset])) != 0)
+            return stat;
+    }
+    else
+    {
+        /* quick check of an inode in use */
+        if ((stat = soQCheckInodeIU(p_sb, &p_inode[offset])) != 0)
+            return stat;
+    }
+
+    /* END OF VALIDATION */
+ 
 
     if(clustInd <= N_DIRECT){
         soHandleDirect(p_sb,nInode,p_inode,clustInd,op,p_outVal);
