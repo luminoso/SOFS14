@@ -107,9 +107,66 @@ int soHandleFileCluster(uint32_t nInode, uint32_t clustInd, uint32_t op, uint32_
     // check if op is valid
     // if op is GET or ALLOC if p_poutval is null
     // else set p_outVal to null
-    
+
     // if op=GET|ALLOC|FREE|FREE_CLEAN check if nInode is in use and its type is valid
     // if op=CLEAN check quick free dirty state
+
+    /* calculate if clustInd is direct, single indirect or double indirect table
+     * 0 - direct reference
+     * 1 - single indirect reference
+     * 3 - double indirect reference
+     */
+    unsigned int rt; // reference table indicator. 0, 1 or 2
+    unsigned int rp; // reference position for a given table
+    unsigned float rp_offset; // offset position for the given table
+    
+    rp = (clustInd - N_DIRECT) / RPC;
+    rp_offset = (clustInd - N_DIRECT) % RPC;
+    
+    if(clustInd < 7){ // if smaller than 7 it's located at the direct reference table
+        rt = 0; // requested cluster id is located in direct reference table
+    } else if(rp <= 1 && rp_offset == 0){ // if it fit in single indirect
+        rt = 1; // requested cluster id is located in single indirect table
+    } else if(rp >= 1 && rp_offset != 0){ // if it fit in the double indirect table
+        rt = 2; // requested cluster id is located double indirect reference table
+    }
+    
+    switch (op) {
+        case GET:{
+            switch(rt){
+                case 0:{} // soHandleDirect
+                case 1:{} // soHandleSIndirect
+                case 2:{} // soHandleDIndirect
+                default:{} // ??
+            }
+        }
+        case ALLOC:{
+        switch(rt){
+                case 0:{} // soHandleDirect
+                case 1:{}
+                case 2:{}
+                default:{}
+            }
+        }
+        case FREE:{switch(rt){
+                case 0:{}
+                case 1:{}
+                case 2:{}
+                default:{}
+            }
+        }
+        case FREE_CLEAN:{
+        switch(rt){
+                case 0:{}
+                case 1:{}
+                case 2:{}
+                default:{}
+            }
+        }
+        case CLEAN:{}
+        default:
+            return -EINVAL;
+    }
 
     return 0;
 }
