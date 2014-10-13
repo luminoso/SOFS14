@@ -1,7 +1,7 @@
 /**
  *  \file soReadInode.c (implementation file)
  *
- *  \author Pedro Gabriel Fernandes Vieira
+ *  \author Pedro Gabriel Fernandes Vieira - 68021
  */
 
 /* #define CLEAN_INODE */
