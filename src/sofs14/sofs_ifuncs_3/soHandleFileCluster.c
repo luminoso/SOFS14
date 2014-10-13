@@ -1,7 +1,7 @@
 /**
  *  \file soHandleFileCluster.c (implementation file)
  *
- *  \author
+ *  \author Guilherme Cardoso (45726), Tiago Oliveira (51687)
  */
 
 #include <stdio.h>
@@ -32,14 +32,14 @@
 
 /* allusion to internal functions */
 
-int soHandleDirect (SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uint32_t nClust, uint32_t op,
-                           uint32_t *p_outVal);
-int soHandleSIndirect (SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uint32_t nClust, uint32_t op,
-                              uint32_t *p_outVal);
-int soHandleDIndirect (SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uint32_t nClust, uint32_t op,
-                              uint32_t *p_outVal);
-int soAttachLogicalCluster (SOSuperBlock *p_sb, uint32_t nInode, uint32_t clustInd, uint32_t nLClust);
-int soCleanLogicalCluster (SOSuperBlock *p_sb, uint32_t nInode, uint32_t nLClust);
+int soHandleDirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uint32_t nClust, uint32_t op,
+        uint32_t *p_outVal);
+int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uint32_t nClust, uint32_t op,
+        uint32_t *p_outVal);
+int soHandleDIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uint32_t nClust, uint32_t op,
+        uint32_t *p_outVal);
+int soAttachLogicalCluster(SOSuperBlock *p_sb, uint32_t nInode, uint32_t clustInd, uint32_t nLClust);
+int soCleanLogicalCluster(SOSuperBlock *p_sb, uint32_t nInode, uint32_t nLClust);
 
 /**
  *  \brief Handle of a file data cluster.
@@ -88,14 +88,30 @@ int soCleanLogicalCluster (SOSuperBlock *p_sb, uint32_t nInode, uint32_t nLClust
  *  \return -<em>other specific error</em> issued by \e lseek system call
  */
 
-int soHandleFileCluster (uint32_t nInode, uint32_t clustInd, uint32_t op, uint32_t *p_outVal)
-{
-  soColorProbe (413, "07;31", "soHandleFileCluster (%"PRIu32", %"PRIu32", %"PRIu32", %p)\n",
-                nInode, clustInd, op, p_outVal);
+int soHandleFileCluster(uint32_t nInode, uint32_t clustInd, uint32_t op, uint32_t *p_outVal) {
+    soColorProbe(413, "07;31", "soHandleFileCluster (%"PRIu32", %"PRIu32", %"PRIu32", %p)\n",
+            nInode, clustInd, op, p_outVal);
 
-  /* insert your code here */
+    int stat;
+    SOSuperBlock *p_sb;
 
-  return 0;
+    if ((stat = soLoadSuperBlock()))
+        return stat;
+
+    p_sb = soGetSuperBlock();
+
+    // check inode range
+
+    // check cluster number range
+
+    // check if op is valid
+    // if op is GET or ALLOC if p_poutval is null
+    // else set p_outVal to null
+    
+    // if op=GET|ALLOC|FREE|FREE_CLEAN check if nInode is in use and its type is valid
+    // if op=CLEAN check quick free dirty state
+
+    return 0;
 }
 
 /**
@@ -123,13 +139,12 @@ int soHandleFileCluster (uint32_t nInode, uint32_t clustInd, uint32_t op, uint32
  *  \return -<em>other specific error</em> issued by \e lseek system call
  */
 
-int soHandleDirect (SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uint32_t clustInd, uint32_t op,
-                           uint32_t *p_outVal)
-{
+int soHandleDirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uint32_t clustInd, uint32_t op,
+        uint32_t *p_outVal) {
 
-  /* insert your code here */
+    /* insert your code here */
 
-  return 0;
+    return 0;
 }
 
 /**
@@ -157,13 +172,12 @@ int soHandleDirect (SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uint3
  *  \return -<em>other specific error</em> issued by \e lseek system call
  */
 
-int soHandleSIndirect (SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uint32_t clustInd, uint32_t op,
-                              uint32_t *p_outVal)
-{
+int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uint32_t clustInd, uint32_t op,
+        uint32_t *p_outVal) {
 
-  /* insert your code here */
+    /* insert your code here */
 
-  return 0;
+    return 0;
 }
 
 /**
@@ -191,13 +205,12 @@ int soHandleSIndirect (SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, ui
  *  \return -<em>other specific error</em> issued by \e lseek system call
  */
 
-int soHandleDIndirect (SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uint32_t clustInd, uint32_t op,
-                              uint32_t *p_outVal)
-{
+int soHandleDIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uint32_t clustInd, uint32_t op,
+        uint32_t *p_outVal) {
 
-  /* insert your code here */
+    /* insert your code here */
 
-  return 0;
+    return 0;
 }
 
 /**
@@ -217,12 +230,11 @@ int soHandleDIndirect (SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, ui
  *  \return -<em>other specific error</em> issued by \e lseek system call
  */
 
-int soAttachLogicalCluster (SOSuperBlock *p_sb, uint32_t nInode, uint32_t clustInd, uint32_t nLClust)
-{
+int soAttachLogicalCluster(SOSuperBlock *p_sb, uint32_t nInode, uint32_t clustInd, uint32_t nLClust) {
 
-  /* insert your code here */
+    /* insert your code here */
 
-  return 0;
+    return 0;
 }
 
 /**
@@ -241,10 +253,12 @@ int soAttachLogicalCluster (SOSuperBlock *p_sb, uint32_t nInode, uint32_t clustI
  *  \return -<em>other specific error</em> issued by \e lseek system call
  */
 
-int soCleanLogicalCluster (SOSuperBlock *p_sb, uint32_t nInode, uint32_t nLClust)
-{
+int soCleanLogicalCluster(SOSuperBlock *p_sb, uint32_t nInode, uint32_t nLClust) {
 
-  /* insert your code here */
+    //read
+    //testa o stat
+    //mete o stat a clean
+    //write
 
-  return 0;
+    return 0;
 }
