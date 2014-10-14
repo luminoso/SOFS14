@@ -402,10 +402,10 @@ static int fillInINT (SOSuperBlock *p_sb)
     p_itable[offset].d[0] = 0;
     for (i = 1; i < N_DIRECT; i++)
     {
-	p_itable[offset].d[i] = NULL_INODE;               //inicializar todas as referencias a clusters a null
+	p_itable[offset].d[i] = NULL_CLUSTER;               //inicializar todas as referencias a clusters a null
     }
-    p_itable[offset].i1 = NULL_INODE;                     // referencias indirectas
-    p_itable[offset].i2 = NULL_INODE;
+    p_itable[offset].i1 = NULL_CLUSTER;                     // referencias indirectas
+    p_itable[offset].i2 = NULL_CLUSTER;
     
     if( (stat = soStoreBlockInT()) != 0)
 	return stat;
@@ -427,12 +427,12 @@ static int fillInINT (SOSuperBlock *p_sb)
     p_itable[offset].cluCount = 0;                        // size in clusters
     for (j = 0; j < N_DIRECT; j++)
     {
-	p_itable[offset].d[j] = NULL_INODE;               // inicializar todas as referencias a clusters a null
+	p_itable[offset].d[j] = NULL_CLUSTER;               // inicializar todas as referencias a clusters a null
     }
     p_itable[offset].vD1.next = offset +1;                // como inode esta vazio o campo da union usado e o next que contem o indice do proximo indode na lista bi-ligada
     p_itable[offset].vD2.prev = NULL_INODE;
-    p_itable[offset].i1 = NULL_INODE;                     // referencias indirectas
-    p_itable[offset].i2 = NULL_INODE;
+    p_itable[offset].i1 = NULL_CLUSTER;                     // referencias indirectas
+    p_itable[offset].i2 = NULL_CLUSTER;
     
     if( (stat = soStoreBlockInT()) != 0)
 	return stat;
@@ -456,12 +456,12 @@ static int fillInINT (SOSuperBlock *p_sb)
 	p_itable[offset].cluCount = 0;                      // size in clusters
 	for (j = 0; j < N_DIRECT; j++)
 	{
-	    p_itable[offset].d[j] = NULL_INODE;             // inicializar todas as referencias a clusters a null
+	    p_itable[offset].d[j] = NULL_CLUSTER;           // inicializar todas as referencias a clusters a null
 	}
 	p_itable[offset].vD1.next = i +1;                   // como inode esta vazio o campo da union usado e o next que contem o indice do proximo indode na lista bi-ligada
 	p_itable[offset].vD2.prev = i -1;
-	p_itable[offset].i1 = NULL_INODE;                   // referencias indirectas
-	p_itable[offset].i2 = NULL_INODE;
+	p_itable[offset].i1 = NULL_CLUSTER;                 // referencias indirectas
+	p_itable[offset].i2 = NULL_CLUSTER;
 	
 	if( (stat = soStoreBlockInT()) != 0)
 	    return stat;
@@ -484,12 +484,12 @@ static int fillInINT (SOSuperBlock *p_sb)
     p_itable[offset].cluCount = 0;                        // size in clusters
     for (j = 0; j < N_DIRECT; j++)
     {
-	p_itable[offset].d[j] = NULL_INODE;               // inicializar todas as referencias a clusters a null
+	p_itable[offset].d[j] = NULL_CLUSTER;               // inicializar todas as referencias a clusters a null
     }
     p_itable[offset].vD1.next = NULL_INODE;               // como inode esta vazio o campo da union usado e o next que contem o indice do proximo indode na lista bi-ligada
     p_itable[offset].vD2.prev = p_sb->iTotal - 2;
-    p_itable[offset].i1 = NULL_INODE;                     // referencias indirectas
-    p_itable[offset].i2 = NULL_INODE;
+    p_itable[offset].i1 = NULL_CLUSTER;                     // referencias indirectas
+    p_itable[offset].i2 = NULL_CLUSTER;
     
     // gravar as alteracoes que fizemos na tabela de inodes
     if( (stat = soStoreBlockInT()) != 0)
