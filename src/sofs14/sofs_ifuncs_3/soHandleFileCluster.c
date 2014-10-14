@@ -268,6 +268,8 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
                 return stat;
 
             dc->info.ref[ref_offset] = *p_nclust;
+            
+            soAttachLogicalCluster(p_sb,nInode,clustInd,NFClt);
 
             p_inode[offset].cluCount++;
 
@@ -325,7 +327,7 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
                     break;
                 }
             
-            soCleanDataCluster(p_sb,nInode,p_inode->i1);
+            if(clustercount != 0) soCleanDataCluster(p_sb,nInode,p_inode->i1);
             
             p_inode->cluCount--;
                                
@@ -400,9 +402,32 @@ int soHandleDIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
 
 int soAttachLogicalCluster(SOSuperBlock *p_sb, uint32_t nInode, uint32_t clustInd, uint32_t nLClust) {
 
-    /* insert your code here */
-
+    int stat;
+    SOInode p_inode;
+    uint32_t ind_prev, ind_next;
+    SODataClust dc;
+    
+    if((stat = soReadInode(p_inode,nInode,IUIN)) != 0)
+        return stat;
+    
+    if((stat = soHandleFileCluster(nInode,clustInd-1,GET,&ind_prev)))
+        return 0;
+    
+    if((stat = soHandleFileCluster(nInode,clustInd+1,GET,&ind_next)))
+        return 0;
+    
+    if((stat = soReadCacheCluster(p_sb->dZoneStart + nLClust * BLOCKS_PER_CLUSTER,&dc))!= 0)
+        return stat;
+    
+    if(ind_prev != NULL_CLUSTER) dc.prev = ind_prev;
+    
+    if(ind_next != NULL_CLUSTER) dc.next = ind_next;
+    
+    if((stat = soWriteCacheCluster(p_sb->dZoneStart + nLClust * BLOCKS_PER_CLUSTER,&dc)) != 0)
+        return stat;
+    
     return 0;
+    
 }
 
 /**
