@@ -246,7 +246,6 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
                 dc = soGetSngIndRefClust();
 
                 *p_outVal = dc->info.ref[ref_offset];
-
             }
 
             break;
@@ -258,6 +257,12 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
                     return stat;
 
                 p_inode[offset]->i1 = *p_nclust;
+
+                if ((stat = soReadCacheCluster(p_sb->dZoneStart + *p_nclust * BLOCKS_PER_CLUSTER, dc)) != 0)
+                    return stat;
+
+                int i; // reference position 
+                for (i = 0; i < RPC; i++) dc->info.ref[i] = NULL_CLUSTER;
 
                 p_inode[offset]->cluCount++;
             }
