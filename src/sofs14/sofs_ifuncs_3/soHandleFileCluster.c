@@ -18,6 +18,7 @@
 #include "sofs_basicconsist.h"
 #include "sofs_ifuncs_1.h"
 #include "sofs_ifuncs_2.h"
+#include "../sofs_ifuncs_3.h"
 
 /** \brief operation get the logical number of the referenced data cluster for an inode in use */
 #define GET         0
@@ -125,7 +126,7 @@ int soHandleFileCluster(uint32_t nInode, uint32_t clustInd, uint32_t op, uint32_
         return stat;
 
     /* load the contents of a specific block of the table of inodes into internal storage*/
-    if (stat = soLoadBlockInt(nBlk) != 0)
+    if ((stat = soLoadBlockInT(nBlk)) != 0)
         return stat;
 
     /* get a pointer to the contents of a specific block of the table of inodes */
@@ -142,7 +143,6 @@ int soHandleFileCluster(uint32_t nInode, uint32_t clustInd, uint32_t op, uint32_
     }
 
     /* END OF VALIDATION */
-
 
     if (clustInd <= N_DIRECT) {
         soHandleDirect(p_sb, nInode, p_inode, clustInd, op, p_outVal);
@@ -222,23 +222,21 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
     SOInode *p_inode;  // pointer to nInode inode
     uint32_t nBlk, offset; // inode block position and offset
     uint32_t *p_nclust; // pointer no cluster number
+    uint32_t NFClt;
 
-    if (op >= 4) return -EINVAL;
+    if (op > 4) return -EINVAL;
 
     ref_offset = (clustInd - N_DIRECT - RPC) % RPC;
+    
+    NFClt = p_sb->dZoneStart + p_inode.i1 * BLOCKS_PER_CLUSTER;
 
-    if ((stat = soConvertRefInT(nInode, nBlk, offset)) != 0)
+    if((stat = soReadInode(p_inode,nInode,IUIN)) != 0)
         return stat;
-
-    if ((stat = soLoadBlockInT(nBlk)) != 0)
-        return stat;
-
-    p_inode = soGetBlockInT();
 
     switch (op) {
         case GET:
         {
-            if ((stat = soLoadSngIndRefClust(p_inode[offset]->i1)) != 0)
+            if ((stat = soLoadSngIndRefClust(NFClt)) != 0)
                 return stat;
 
             dc = soGetSngIndRefClust();
@@ -249,6 +247,7 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
         }
         case ALLOC:
         {
+            // EDCARDYIL, if the referenced data cluster is already in the list of direct references (ALLOC)
             if (p_inode->i1 == NULL_CLUSTER) {
                 if ((stat = soAllocDataCluster(nInode, p_nclust)) != 0)
                     return stat;
@@ -256,29 +255,35 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
                 p_inode[offset]->i1 = *p_nclust;
 
                 p_inode[offset]->cluCount++;
-            } else {
-                if ((stat = soLoadSngIndRefClust(p_inode[offset].i1) != 0))
-                    return stat;
-
-                dc = soGetSngIndRefClust();
-
-                if ((stat == soAllocDataCluster(nInode, p_nclust)) != 0)
-                    return stat;
-
-                dc->info.ref[ref_offset] = *p_nclust;
-
-                p_inode[offset].cluCount++;
             }
-
-            break;
-        }
-        case FREE:
-        {
-            p_outVal = NULL;
-            if ((stat = soLoadSngIndRefClust(p_inode[offset]->i1)) != 0)
+            
+            if ((stat = soLoadSngIndRefClust(NFClt) != 0))
                 return stat;
 
             dc = soGetSngIndRefClust();
+            
+            if(dc->info.ref[ref_offset] != NULL_CLUSTER) return -EDCARDYIL;
+
+            if ((stat == soAllocDataCluster(nInode, p_nclust)) != 0)
+                return stat;
+
+            dc->info.ref[ref_offset] = *p_nclust;
+
+            p_inode[offset].cluCount++;
+
+            break;
+        }
+        case FREE:        {
+            p_outVal = NULL;
+            
+            if(p_inode->i1 == NULL_CLUSTER) return -EDCNOTIL;
+            
+            if ((stat = soLoadSngIndRefClust(NFClt)) != 0)
+                return stat;
+
+            dc = soGetSngIndRefClust();
+            
+            if(dc->info.ref[ref_offset] == NULL_CLUSTER) return -EDCNOTIL;
 
             if (dc->info.ref[ref_offset] != clustInd) return -EDCNOTIL;
 
@@ -286,12 +291,16 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
 
             if ((stat = soFreeDataCluster(dc->info.de[ref_offset])) != 0)
                 return stat;
+            
             break;
         }
         case FREE_CLEAN:
         {
             p_outVal = NULL;
-            if((stat = soLoadSngIndRefClust(p_inode[offset]->i1)) != 0)
+            
+            if(p_inode->i1 == NULL_CLUSTER) return -EDCNOTIL;
+            
+            if((stat = soLoadSngIndRefClust(NFClt)) != 0)
                 return stat;
             
             dc = soGetSngIndRefClust();
@@ -305,22 +314,27 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
             
             p_inode[offset].cluCount--;
             
-            uint32_t rpc_pos;
-            uint32_t rpc_counter;
+            soCleanLogicalCluster(p_sb,nInode,dc->info.ref[ref_offset]);
             
-            for(rpc_pos = 0 ; rpc_pos < RPC; rpc_pos++)
-                if(dc->info.ref[rpc_pos] != NULL_CLUSTER) rpc_counter++;
+            uint32_t clusterref_pos;
+            uint32_t clustercount;
             
-            if(rpc_counter == 0){
-                if((stat = soFreeDataCluster(p_inode[offset].i1))!=0)
-                    return stat;
-                p_inode[offset].i1 = NULL_CLUSTER;
-                p_inode[offset].cluCount--;
-            }
+            for(clusterref_pos = 0; clusterref_pos < RPC; clusterref_pos++)
+                if(dc->info.ref[clusterref_pos] != NULL_CLUSTER){
+                    clustercount++;
+                    break;
+                }
+            
+            soCleanDataCluster(p_sb,nInode,p_inode->i1);
+            
+            p_inode->cluCount--;
+                               
             break;
         }
         case CLEAN:
         {
+            // EDCNOTIL, if the referenced data cluster is not in the list of direct references
+            // EWGINODENB, if the <em>inode number</em> in the data cluster <tt>status</tt> field is different from the provided <em>inode number</em> (FREE AND CLEAN / CLEAN)
             p_outVal = NULL;
         }
         default:
