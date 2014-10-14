@@ -1,7 +1,7 @@
 /**
  *  \file soCleanDataCluster.c (implementation file)
  *
- *  \author
+ *  \author Bruno Silva
  */
 
 #include <stdio.h>
@@ -61,7 +61,65 @@ int soCleanDataCluster (uint32_t nInode, uint32_t nLClust)
 {
   soColorProbe (415, "07;31", "soCleanDataCluster (%"PRIu32", %"PRIu32")\n", nInode, nLClust);
 
-  /* insert your code here */
+  int stat, i; // stat = error stat of the function; i= auxiliary variable for iterations
+  SOSuperBlock *p_sb; // pointer to the super block
+  SOInode inode; // inode instance to clean the references
+  SODataClust *p_cluster;
+
+  // Load the super block
+  if((stat = soLoaSuperBlock()) != 0)
+ 		return stat;
+
+ 	//get pointer to the super block
+	p_sb = soGetSuperBlock();
+
+
+	//check if inode is in the allowed parameters
+  if(!(n > 0 && nInode < p_sb->iTotal))
+  	return -EINVAL;
+
+
+  //check if nLClust is in allowed parameters
+  if (!(nLClust > 0 && nLClust < p_sb->dZoneTotal) != 0)
+  	return stat;
+
+
+  //read nInode data into inode
+  if((stat = soReadInode(&inode, nInode, FDIN)) != 0)
+  	return stat;
+
+
+  //check consistency of inode
+  if((stat = soQCheckFDInode(p_sb, &inode)) != 0)
+  	return stat;
+
+  // if the inode cluCount is less than N_DIRECT there's only the direct reference array
+  if(inode.cluCount < N_DIRECT){
+  	
+  	//search through the direct reference array
+  	for(i = 0; i < inode.cluCount; i++){
+
+  		//test if d[i] is the cluster we want
+  		if(inode.d[i] == nLClust){
+
+  			if((stat = soLoadDirRefClust(p_sb->dZoneStart + nLClust * BLOCKS_PER_CLUSTER)) != 0)
+  				return stat;
+
+  			p_cluster = soGetDirRefClust();
+
+  			if(p_cluster->prev != NULL_CLUSTER)
+  				soCleanDataCluster(nInode, p_cluster->prev);
+
+  			if(p_cluster->next != NULL_CLUSTER)
+  				soCleanDataCluster(nInode, p_cluster->next);
+
+  			if((stat = soHandleFileCluster(nInode, i, CLEAN, NULL)) != 0)
+  				return stat;
+  		}
+  	}
+  }
+
+
 
   return 0;
 }
