@@ -228,10 +228,10 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
 
     ref_offset = (clustInd - N_DIRECT - RPC) % RPC;
 
-    NFClt = p_sb->dZoneStart + p_inode.i1 * BLOCKS_PER_CLUSTER;
-
-    if ((stat = soReadInode(p_inode, nInode, IUIN)) != 0)
+    if ((stat = soReadInode(&p_inode, nInode, IUIN)) != 0)
         return stat;
+
+    NFClt = p_sb->dZoneStart + p_inode->i1 * BLOCKS_PER_CLUSTER;
 
     switch (op) {
         case GET:
@@ -409,7 +409,7 @@ int soAttachLogicalCluster(SOSuperBlock *p_sb, uint32_t nInode, uint32_t clustIn
     uint32_t ind_prev, ind_next;
     SODataClust dc;
 
-    if ((stat = soReadInode(p_inode, nInode, IUIN)) != 0)
+    if ((stat = soReadInode(&p_inode, nInode, IUIN)) != 0)
         return stat;
 
     if ((stat = soHandleFileCluster(nInode, clustInd - 1, GET, &ind_prev)))
@@ -450,22 +450,22 @@ int soAttachLogicalCluster(SOSuperBlock *p_sb, uint32_t nInode, uint32_t clustIn
 
 int soCleanLogicalCluster(SOSuperBlock *p_sb, uint32_t nInode, uint32_t nLClust) {
 
-    int stat;           // function return status control 
-    uint32_t NFClt;     // physical number of the cluster
-    SODataClust dc;     // datacluster to be retrieved, modified and saved
-    
+    int stat; // function return status control 
+    uint32_t NFClt; // physical number of the cluster
+    SODataClust dc; // datacluster to be retrieved, modified and saved
+
     // read the data cluster, converting it's logical number to physical number
-    if((stat = soReadCacheCluster(p_sb->dZoneStart + nLClust * BLOCKS_PER_CLUSTER,&dc)) !=0)
+    if ((stat = soReadCacheCluster(p_sb->dZoneStart + nLClust * BLOCKS_PER_CLUSTER, &dc)) != 0)
         return stat;
-    
+
     // test if the given data cluster belongs to the right inode
-    if(dc.stat != nInode) return -EWGINODENB;
-    
+    if (dc.stat != nInode) return -EWGINODENB;
+
     // mark as clean
     dc.stat = CLEAN;
-    
+
     // save the data cluster
-    if((stat = soWriteCacheCluster(p_sb->dZoneStart + nLClust * BLOCKS_PER_CLUSTER),&dc) != 0)
+    if ((stat = soWriteCacheCluster(p_sb->dZoneStart + nLClust * BLOCKS_PER_CLUSTER), &dc) != 0)
         return stat;
 
     return 0;
