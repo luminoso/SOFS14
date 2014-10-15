@@ -448,7 +448,6 @@ int soHandleDIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
         {
             if (p_inode->i2 == NULL_CLUSTER) {
                 *p_outVal = NULL_CLUSTER;
-                break;
             } else {
                 if ((stat = soLoadSngIndRefClust(p_sb->dZoneStart + p_inode->i2 * BLOCKS_PER_CLUSTER)) != 0)
                     return stat;
@@ -457,22 +456,16 @@ int soHandleDIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
 
                 if (dc->info.ref[ref_Soffset] == NULL_CLUSTER) {
                     *p_outVal = NULL_CLUSTER;
-                    break;
                 } else {
                     if ((stat = soLoadDirRefClust(ref_Soffset)) != 0)
                         return stat;
 
                     dc = soGetDirRefClust();
 
-                    if (dc->info.ref[ref_Doffset] == NULL_CLUSTER) {
-                        *p_outVal = NULL_CLUSTER;
-                        break;
-                    } else {
-                        *p_outVal = dc->info.ref[ref_Doffset];
-                        break;
-                    }
+                    *p_outVal = dc->info.ref[ref_Doffset];
                 }
             }
+            break;
         }
         case ALLOC:
         {
@@ -489,36 +482,43 @@ int soHandleDIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
 
                 for (i = 0; i < RPC; i++) dc->info.ref[i] = NULL_CLUSTER;
 
-                p_inode->cluCount++;
-            } else {
-                if ((stat = soLoadSngIndRefClust(p_sb->dZoneStart + p_inode->i2 * BLOCKS_PER_CLUSTER)) != 0)
+                if ((stat = soWriteCacheCluster(p_sb->dZoneStart + p_inode->i2 * BLOCKS_PER_CLUSTER)) != 0)
                     return stat;
 
-                dc = soGetSngIndRefClust();
-
-                if (dc->info.ref[ref_Soffset] == NULL_CLUSTER) {
-                    if ((stat = soAllocDataCluster(nInode, p_nclust)) != 0)
-                        return stat;
-
-                    dc->info.ref[ref_Soffset] = *p_nclust;
-
-                    if ((stat = soReadCacheCluster(p_sb->dZoneStart + dc->info.ref[ref_Soffset] * BLOCKS_PER_CLUSTER, dc)) != 0)
-                        return stat;
-
-                    uint32_t i;
-
-                    for (i = 0; i < RPC; i++) dc->info.ref[i] = NULL_CLUSTER;
-
-                    p_inode->cluCount++;
-                } else {
-                    if ((stat = soAllocDataCluster(nInode, p_nclust)) != 0)
-                        return stat;
-
-                    dc->info.ref[ref_Doffset] = *p_outVal = *p_nclust;
-
-                    p_inode->cluCount++;
-                }
+                p_inode->cluCount++;
             }
+
+            if ((stat = soLoadSngIndRefClust(p_sb->dZoneStart + p_inode->i2 * BLOCKS_PER_CLUSTER)) != 0)
+                return stat;
+
+            dc = soGetSngIndRefClust();
+
+            if (dc->info.ref[ref_Soffset] == NULL_CLUSTER) {
+                if ((stat = soAllocDataCluster(nInode, p_nclust)) != 0)
+                    return stat;
+
+                dc->info.ref[ref_Soffset] = *p_nclust;
+
+                if ((stat = soReadCacheCluster(p_sb->dZoneStart + dc->info.ref[ref_Soffset] * BLOCKS_PER_CLUSTER, dc)) != 0)
+                    return stat;
+
+                uint32_t i;
+
+                for (i = 0; i < RPC; i++) dc->info.ref[i] = NULL_CLUSTER;
+
+                if ((stat = soWriteCacheCluster(p_sb->dZoneStart + dc->info.ref[ref_Soffset] * BLOCKS_PER_CLUSTER)) != 0)
+                    return stat;
+
+                p_inode->cluCount++;
+            }
+            if ((stat = soAllocDataCluster(nInode, p_nclust)) != 0)
+                return stat;
+
+            if (dc->info.ref[ref_Doffset] != NULL_CLUSTER) return -EDCARDYIL;
+
+            dc->info.ref[ref_Doffset] = *p_outVal = *p_nclust;
+
+            p_inode->cluCount++;
         }
         case FREE:
         {
@@ -543,7 +543,7 @@ int soHandleDIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
             } else {
                 if ((stat = soFreeDataCluster(dc->info.ref[ref_Doffset])) != 0)
                     return stat;
-                
+
                 p_inode->cluCount--;
             }
             break;
@@ -552,14 +552,14 @@ int soHandleDIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
         {
             p_outVal = NULL;
 
-            if (p_inode->i2 == NULL_CLUSTER) return -EINVAL;
+            if (p_inode->i2 == NULL_CLUSTER) return -EDCNOTIL;
 
             if ((stat = soLoadSngIndRefClust(p_sb->dZoneStart + p_inode->i2 * BLOCKS_PER_CLUSTER)) != 0)
                 return stat;
 
             dc = soGetSngIndRefClust();
 
-            if (dc->info.ref[ref_Soffset] == NULL_CLUSTER) return -EINVAL;
+            if (dc->info.ref[ref_Soffset] == NULL_CLUSTER) return -EDCNOTIL;
 
             if ((stat = soLoadDirRefClust(p_sb->dZoneStart + dc->info.ref[ref_Soffset])) != 0)
                 return stat;
@@ -567,13 +567,15 @@ int soHandleDIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
             dc = soGetDirRefClust();
 
             if (dc->info.ref[ref_Doffset] == NULL_CLUSTER) {
-                return -EINVAL;
+                return -EDCNOTIL;
             } else {
                 if ((stat = soFreeDataCluster(dc->info.ref[ref_Doffset])) != 0)
                     return stat;
                 if ((stat = soCleanDataCluster(nInode, dc->info.ref[ref_Doffset])) != 0)
                     return stat;
-                
+
+                dc->info.ref[ref_Doffset] = NULL_CLUSTER;
+
                 p_inode->cluCount--;
             }
             break;
@@ -582,14 +584,14 @@ int soHandleDIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
         {
             p_outVal = NULL;
 
-            if (p_inode->i2 == NULL_CLUSTER) return -EINVAL;
+            if (p_inode->i2 == NULL_CLUSTER) return -EDCNOTIL;
 
             if ((stat = soLoadSngIndRefClust(p_sb->dZoneStart + p_inode->i2 * BLOCKS_PER_CLUSTER)) != 0)
                 return stat;
 
             dc = soGetSngIndRefClust();
 
-            if (dc->info.ref[ref_Soffset] == NULL_CLUSTER) return -EINVAL;
+            if (dc->info.ref[ref_Soffset] == NULL_CLUSTER) return -EDCNOTIL;
 
             if ((stat = soLoadDirRefClust(p_sb->dZoneStart + p_inode->i2 * BLOCKS_PER_CLUSTER)) != 0)
                 return stat;
@@ -597,13 +599,15 @@ int soHandleDIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
             dc = soGetDirRefClust();
 
             if (dc->info.ref[ref_Doffset] == NULL_CLUSTER) {
-                return -EINVAL;
+                return -EDCNOTIL;
             } else {
                 if ((stat = soCleanDataCluster(nInode, dc->info.ref[ref_Doffset])) != 0)
                     return stat;
-                
+
+                dc->info.ref[ref_Doffset] = NULL_CLUSTER;
+
                 p_inode->cluCount--;
-                
+
             }
             break;
         }
