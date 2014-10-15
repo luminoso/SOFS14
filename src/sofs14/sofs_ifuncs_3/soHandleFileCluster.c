@@ -404,7 +404,6 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
 
     return 0;
 }
-
 /**
  *  \brief Handle of a file data cluster which belongs to the double indirect references list.
  *
@@ -482,7 +481,7 @@ int soHandleDIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
 
                 for (i = 0; i < RPC; i++) dc->info.ref[i] = NULL_CLUSTER;
 
-                if ((stat = soWriteCacheCluster(p_sb->dZoneStart + p_inode->i2 * BLOCKS_PER_CLUSTER)) != 0)
+                if ((stat = soWriteCacheCluster(p_sb->dZoneStart + p_inode->i2 * BLOCKS_PER_CLUSTER, dc)) != 0)
                     return stat;
 
                 p_inode->cluCount++;
@@ -506,7 +505,7 @@ int soHandleDIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
 
                 for (i = 0; i < RPC; i++) dc->info.ref[i] = NULL_CLUSTER;
 
-                if ((stat = soWriteCacheCluster(p_sb->dZoneStart + dc->info.ref[ref_Soffset] * BLOCKS_PER_CLUSTER)) != 0)
+                if ((stat = soWriteCacheCluster(p_sb->dZoneStart + dc->info.ref[ref_Soffset] * BLOCKS_PER_CLUSTER, dc)) != 0)
                     return stat;
 
                 p_inode->cluCount++;
