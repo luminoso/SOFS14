@@ -254,7 +254,7 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
             if (p_inode->i1 == NULL_CLUSTER) {
                 *p_outVal = NULL_CLUSTER;
             } else {
-                if ((stat = soLoadSngIndRefClust(p_sb->dZoneStart + p_inode->i1 * BLOCKS_PER_CLUSTER)) != 0)
+                if ((stat = soLoadDirRefClust(p_sb->dZoneStart + p_inode->i1 * BLOCKS_PER_CLUSTER)) != 0)
                     return stat;
 
                 dc = soGetSngIndRefClust();
@@ -280,7 +280,7 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
 
                 p_inode->cluCount++;
             }
-            if ((stat = soLoadSngIndRefClust(p_sb->dZoneStart + p_inode->i1 * BLOCKS_PER_CLUSTER) != 0))
+            if ((stat = soLoadDirRefClust(p_sb->dZoneStart + p_inode->i1 * BLOCKS_PER_CLUSTER) != 0))
                 return stat;
 
             dc = soGetSngIndRefClust();
@@ -305,7 +305,7 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
 
             if (p_inode->i1 == NULL_CLUSTER) return -EDCNOTIL;
 
-            if ((stat = soLoadSngIndRefClust(p_sb->dZoneStart + p_inode->i1 * BLOCKS_PER_CLUSTER)) != 0)
+            if ((stat = soLoadDirRefClust(p_sb->dZoneStart + p_inode->i1 * BLOCKS_PER_CLUSTER)) != 0)
                 return stat;
 
             dc = soGetSngIndRefClust();
@@ -325,7 +325,7 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
 
             if (p_inode->i1 == NULL_CLUSTER) return -EDCNOTIL;
 
-            if ((stat = soLoadSngIndRefClust(p_sb->dZoneStart + p_inode->i1 * BLOCKS_PER_CLUSTER)) != 0)
+            if ((stat = soLoadDirRefClust(p_sb->dZoneStart + p_inode->i1 * BLOCKS_PER_CLUSTER)) != 0)
                 return stat;
 
             dc = soGetSngIndRefClust();
@@ -364,7 +364,7 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
 
             if (p_inode->i1 == NULL_CLUSTER) return -EDCNOTIL;
 
-            if ((stat = soLoadSngIndRefClust(p_sb->dZoneStart + p_inode->i1 * BLOCKS_PER_CLUSTER)) != 0)
+            if ((stat = soLoadDirRefClust(p_sb->dZoneStart + p_inode->i1 * BLOCKS_PER_CLUSTER)) != 0)
                 return stat;
 
             dc = soGetSngIndRefClust();
@@ -434,7 +434,7 @@ int soHandleDIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
         uint32_t *p_outVal) {
 
     /* insert your code here */
-
+    
     return 0;
 }
 
