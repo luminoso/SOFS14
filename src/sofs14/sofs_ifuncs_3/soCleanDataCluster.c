@@ -67,7 +67,7 @@ int soCleanDataCluster (uint32_t nInode, uint32_t nLClust)
   SODataClust *p_cluster;
 
   // Load the super block
-  if((stat = soLoaSuperBlock()) != 0)
+  if((stat = soLoadSuperBlock()) != 0)
  		return stat;
 
  	//get pointer to the super block
@@ -75,7 +75,7 @@ int soCleanDataCluster (uint32_t nInode, uint32_t nLClust)
 
 
 	//check if inode is in the allowed parameters
-  if(!(n > 0 && nInode < p_sb->iTotal))
+  if(!(nInode > 0 && nInode < p_sb->iTotal))
   	return -EINVAL;
 
 
