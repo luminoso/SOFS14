@@ -176,6 +176,7 @@ int soHandleDirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uint32
         uint32_t *p_outVal) {
 
     uint32_t NLClt;
+    int stat;
     //uint32_t NFClt;   
     //NFClt = p_sb->dZoneStart + NLClt * BLOCKS_PER_CLUSTER;  //NFClt: cluster physical number
 
@@ -329,7 +330,7 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
 
                 p_inode->cluCount++;
 
-                if ((stat = soWriteCacheCluster(p_sb->dZoneStart + p_inode->i1 * BLOCKS_PER_CLUSTER) != 0))
+                if ((stat = soWriteCacheCluster(p_sb->dZoneStart + p_inode->i1 * BLOCKS_PER_CLUSTER, dc) != 0))
                     return stat;
             }
             if ((stat = soLoadDirRefClust(p_sb->dZoneStart + p_inode->i1 * BLOCKS_PER_CLUSTER) != 0))
@@ -801,7 +802,6 @@ int soAttachLogicalCluster(SOSuperBlock *p_sb, uint32_t nInode, uint32_t clustIn
 int soCleanLogicalCluster(SOSuperBlock *p_sb, uint32_t nInode, uint32_t nLClust) {
 
     int stat; // function return status control 
-    uint32_t NFClt; // physical number of the cluster
     SODataClust dc; // datacluster to be retrieved, modified and saved
 
     // read the data cluster, converting it's logical number to physical number
