@@ -137,7 +137,13 @@ int soHandleFileCluster(uint32_t nInode, uint32_t clustInd, uint32_t op, uint32_
     } else {
         soHandleDIndirect(p_sb, nInode, p_inode, clustInd, op, p_outVal);
     }
-    //falta escrever o no-i se a operacao nao for get
+    
+    if (GET)
+        return 0;
+    
+    if ((stat = soWriteInode(p_inode, nInode, IUIN)) != 0)     
+        return stat;
+    
     return 0;
 }
 
