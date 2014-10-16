@@ -169,46 +169,91 @@ int soHandleFileCluster(uint32_t nInode, uint32_t clustInd, uint32_t op, uint32_
 int soHandleDirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uint32_t clustInd, uint32_t op,
         uint32_t *p_outVal) {
 
-    uint32_t NLClt, NFClt;                  // NLClt: cluster logic number, NFClt: cluster physical number  
-    
-    NLClt = clustInd; // DIRTY FIX: apenas para compilar
-    
-    NFClt = p_sb->dZoneStart + NLClt * BLOCKS_PER_CLUSTER;
+    uint32_t NLClt;
+    //uint32_t NFClt;   
+    //NFClt = p_sb->dZoneStart + NLClt * BLOCKS_PER_CLUSTER;  //NFClt: cluster physical number
+
+    NLClt = p_inode->d[clustInd]; // NLClt: cluster logic number
 
     /* requested operation is invalid */
     if (op > 4)
         return -EINVAL;
 
-    switch(op)
-    {
-        case GET: 
-            *p_outVal = p_inode->d[clustInd];    // get cluster logic number *p ou p? eu quero mudar o valor e nao o endereco
-            return 0;                              // nao tenho de verificar se o nó i está em uso??
-                                                // tenho de usar p_inode[offset] ?? talvez corrigido na funcao principal
-
-        case ALLOC: 
-                
+    switch (op) {
+        case GET:
+            *p_outVal = NLClt; // can return NULL_CLUSTER 
             return 0;
 
-        case CLEAN: 
-        case FREE:  
-        case FREE_CLEAN: if(p_inode->d[clustInd] == NULL_CLUSTER) return -EDCNOTIL;
-                         if(op != CLEAN)
-                           {
-                            if((stat = soFreeDataCluster(p_inode->d[clustInd])) != 0) return stat;
-                            if(op == FREE) return 0;
-                           }
-                          if((stat = soCleanLogicalCluster(p_sb, nInode, p_inode->d[clustInd])) != 0) return stat;
-                          p_inode->d[clustInd] = NULL_CLUSTER;
-                          return 0;
 
-        default : return -EINVAL;
+        case ALLOC:
+            if (NLClt != NULL_CLUSTER) // if the element of direct references already have a cluster associated
+                return -EDCARDYIL;
+
+            if ((stat = soAttachLogicalCluster(p_sb, nInode, clustInd, NLClt)) != 0) // try to attach a file data cluster 
+                return stat;
+
+            if ((stat = soAllocDataCluster(nInode, &NLClt)) != 0) // alloc 
+                return stat;
+
+            p_inode->cluCount += 1; // number of data clusters attached to the file               
+
+            return 0;
+
+        case FREE:
+            if (NLClt == NULL_CLUSTER)
+                return -EDCNOTIL;
+            if ((stat = soFreeDataCluster(NLClt)) != 0)
+                return stat;
+            
+            p_inode->d[clustInd] = NULL_CLUSTER;            // duvida
+            return 0;
+            
+        case FREE_CLEAN:
+            if (NLClt == NULL_CLUSTER)
+                return -EDCNOTIL;
+            
+            if ((stat = soFreeDataCluster(NLClt)) != 0)
+                return stat;
+            
+            if ((stat = soCleanLogicalCluster(p_sb, nInode, NLClt)) != 0)
+                return stat;
+            p_inode->cluCount -= 1;
+            
+            p_inode->d[clustInd] = NULL_CLUSTER;            // duvida
+            return 0;
+            
+            /*
+            if (op != CLEAN) {
+                if ((stat = soFreeDataCluster(NLClt)) != 0)
+                    return stat;
+                if (op == FREE)
+                    return 0;
+            }
+            if ((stat = soCleanLogicalCluster(p_sb, nInode, NLClt)) != 0)
+                return stat;
+            p_inode->d[clustInd] = NULL_CLUSTER;
+            */
+            return 0;
+
+
+        case CLEAN:
+            if (NLClt == NULL_CLUSTER)
+                return -EDCNOTIL;
+            if ((stat = soCleanLogicalCluster(p_sb, nInode, NLClt)) != 0)
+                return stat;
+            p_inode->cluCount -= 1;                                         // decrement number of data clusters attached to a file
+            
+            p_inode->d[clustInd] = NULL_CLUSTER;            // duvida
+            return 0;
+            
+        default: return -EINVAL;
 
     }
 
 
     return -EINVAL;
 }
+
 /**
  *  \brief Handle of a file data cluster which belongs to the single indirect references list.
  *
@@ -411,6 +456,7 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
 
     return 0;
 }
+
 /**
  *  \brief Handle of a file data cluster which belongs to the double indirect references list.
  *
