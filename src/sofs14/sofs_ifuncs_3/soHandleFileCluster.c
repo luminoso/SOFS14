@@ -105,11 +105,11 @@ int soHandleFileCluster(uint32_t nInode, uint32_t clustInd, uint32_t op, uint32_
     /* START OF VALIDATION */
 
     /* if nInode is out of range */
-    if (nInode == 0 || nInode >= p_sb->iTotal)
+    if (nInode >= p_sb->iTotal)
         return -EINVAL;
 
     /* index (clustInd) to the list of direct references are out of range */
-    if (clustInd > MAX_FILE_CLUSTERS)
+    if (clustInd >= MAX_FILE_CLUSTERS)
         return -EINVAL;
 
     /* requested operation is invalid */
@@ -123,29 +123,21 @@ int soHandleFileCluster(uint32_t nInode, uint32_t clustInd, uint32_t op, uint32_
     if (op == CLEAN) {
         if ((stat = soReadInode(p_inode, nInode, FDIN)) != 0)
             return stat;
-
-        /* quick check of a free inode in the dirty state */
-        if ((stat = soQCheckFDInode(p_sb, p_inode)) != 0)
-            return stat;
     } else {
         if ((stat = soReadInode(p_inode, nInode, IUIN)) != 0)
-            return stat;
-
-        /* quick check of an inode in use */
-        if ((stat = soQCheckInodeIU(p_sb, p_inode)) != 0)
             return stat;
     }
 
     /* END OF VALIDATION */
 
-    if (clustInd <= N_DIRECT) {
+    if (clustInd < N_DIRECT) {
         soHandleDirect(p_sb, nInode, p_inode, clustInd, op, p_outVal);
-    } else if (clustInd <= N_DIRECT + RPC) {
+    } else if (clustInd < N_DIRECT + RPC) {
         soHandleSIndirect(p_sb, nInode, p_inode, clustInd, op, p_outVal);
     } else {
         soHandleDIndirect(p_sb, nInode, p_inode, clustInd, op, p_outVal);
     }
-
+    //falta escrever o no-i se a operacao nao for get
     return 0;
 }
 
@@ -191,25 +183,31 @@ int soHandleDirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uint32
     {
         case GET: 
             *p_outVal = p_inode->d[clustInd];    // get cluster logic number *p ou p? eu quero mudar o valor e nao o endereco
-            break;                              // nao tenho de verificar se o nó i está em uso??
+            return 0;                              // nao tenho de verificar se o nó i está em uso??
                                                 // tenho de usar p_inode[offset] ?? talvez corrigido na funcao principal
 
         case ALLOC: 
                 
-            break;
+            return 0;
 
-        case CLEAN: break;
+        case CLEAN: 
+        case FREE:  
+        case FREE_CLEAN: if(p_inode->d[clustInd] == NULL_CLUSTER) return -EDCNOTIL;
+                         if(op != CLEAN)
+                           {
+                            if((stat = soFreeDataCluster(p_inode->d[clustInd])) != 0) return stat;
+                            if(op == FREE) return 0;
+                           }
+                          if((stat = soCleanLogicalCluster(p_sb, nInode, p_inode->d[clustInd])) != 0) return stat;
+                          p_inode->d[clustInd] = NULL_CLUSTER;
+                          return 0;
 
-        case FREE:  break;
-
-        case FREE_CLEAN: break;
-
-        default : break;
+        default : return -EINVAL;
 
     }
 
 
-    return 0;
+    return -EINVAL;
 }
 /**
  *  \brief Handle of a file data cluster which belongs to the single indirect references list.
@@ -697,7 +695,7 @@ int soCleanLogicalCluster(SOSuperBlock *p_sb, uint32_t nInode, uint32_t nLClust)
     if (dc.stat != nInode) return -EWGINODENB;
 
     // mark as clean
-    dc.stat = CLEAN;
+    dc.stat = NULL_INODE;
 
     // save the data cluster
     if ((stat = soWriteCacheCluster(p_sb->dZoneStart + nLClust * BLOCKS_PER_CLUSTER, &dc)) != 0)
