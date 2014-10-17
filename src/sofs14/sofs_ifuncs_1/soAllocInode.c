@@ -18,7 +18,7 @@
 #include "sofs_datacluster.h"
 #include "sofs_basicoper.h"
 #include "sofs_basicconsist.h"
-/* #define  CLEAN_INODE */
+#define  CLEAN_INODE
 #ifdef CLEAN_INODE
 #include "sofs_ifuncs_2.h"
 #endif
@@ -118,7 +118,7 @@ int soAllocInode(uint32_t type, uint32_t* p_nInode) {
         if ((stat = soQCheckFDInode(p_sb, &p_itable[offset])) != 0) {
             // codigo deste if, vem do pdf "manipulacao do cluster de dados", slide 23
             // "it is, clean it"
-            if ((stat = soCleanInode(&p_itable[offset])) != 0)
+            if ((stat = soCleanInode(p_sb->iHead)) != 0)
                 return stat;
             if ((stat = soLoadBlockInT(nBlk)) != 0)
                 return stat;

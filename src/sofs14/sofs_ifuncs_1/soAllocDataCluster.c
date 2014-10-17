@@ -19,7 +19,7 @@
 #include "sofs_datacluster.h"
 #include "sofs_basicoper.h"
 #include "sofs_basicconsist.h"
-/* #define  CLEAN_CLUSTER */
+#define  CLEAN_CLUSTER */
 #ifdef CLEAN_CLUSTER
 #include "sofs_ifuncs_3.h"
 #endif

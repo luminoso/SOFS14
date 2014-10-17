@@ -16,7 +16,7 @@
 #include "sofs_inode.h"
 #include "sofs_basicoper.h"
 #include "sofs_basicconsist.h"
-/* #define  CLEAN_INODE */
+#define  CLEAN_INODE
 #ifdef CLEAN_INODE
 #include "sofs_ifuncs_3.h"
 #endif
@@ -90,10 +90,13 @@ int soCleanInode (uint32_t nInode)
     /* get a pointer to the contents of a specific block of the table of inodes */
     p_inode = soGetBlockInT();
 
-
     /* teacher indication*/
-    soReadInode(p_inode,nInode,stat);
+    if ((stat = soReadInode(p_inode, nInode, stat)) != 0)
+        return stat;
 
+    if ((stat = soHandleFileClusters(nInode, 0, CLEAN)) != 0)
+        return stat;
+    
     /* SEM EFEITO
 
      * quick check of a free inode in the dirty state *
