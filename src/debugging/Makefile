@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall
+CFLAGS = -g3 -gdwarf-2 -Wall
 
 all:			libdebugging
 

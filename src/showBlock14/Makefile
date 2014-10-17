@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -I "../debugging" -I "../rawIO14" -I "../sofs14"
+CFLAGS = -g3 -gdwarf-2 -Wall -I "../debugging" -I "../rawIO14" -I "../sofs14"
 LFLAGS = -L "../../lib"
 
 all32:			showblock_sofs14_32

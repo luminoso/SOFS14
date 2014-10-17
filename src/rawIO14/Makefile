@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -I "../debugging"
+CFLAGS = -g3 -gdwarf-2 -Wall -I "../debugging"
 
 all:			librawIO14
 
