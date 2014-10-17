@@ -60,10 +60,10 @@
 int soAllocInode(uint32_t type, uint32_t* p_nInode) {
     soColorProbe(611, "07;31", "soAllocInode (%"PRIu32", %p)\n", type, p_nInode);
 
-    int stat;  // variavel para indicar o estado
+    int stat; // variavel para indicar o estado
     uint32_t nBlk, offset; // numero de blocos e respectivo offset para poder aceder ao bloco
-    SOSuperBlock *p_sb;  // ponteiro para o superbloco
-    SOInode *p_itable;  // ponteiro para o nó i a revervar
+    SOSuperBlock *p_sb; // ponteiro para o superbloco
+    SOInode *p_itable; // ponteiro para o nó i a revervar
     uint32_t nextInode; // qual o inode que fica seguinte ao iHead
 
     /* carregar super bloco */
@@ -71,16 +71,16 @@ int soAllocInode(uint32_t type, uint32_t* p_nInode) {
         return stat;
 
     p_sb = soGetSuperBlock(); /* ler super bloco */
-    
+
     /*verifica se a lista de nos i livres está vazia*/
     if (p_sb->iFree == 0)
         return -ENOSPC;
 
-/*  
-    falha em 100% dos casos. porque?
-    if(*p_nInode < 1 || *p_nInode > p_sb->iTotal)
-        return -EINVAL;
-*/
+    /*  
+        falha em 100% dos casos. porque?
+        if(*p_nInode < 1 || *p_nInode > p_sb->iTotal)
+            return -EINVAL;
+     */
     /*converter inode no 1º arg. no seu numero de bloco e seu offset*/
     if ((stat = soConvertRefInT(p_sb->iHead, &nBlk, &offset)) != 0)
         return stat;
@@ -113,8 +113,18 @@ int soAllocInode(uint32_t type, uint32_t* p_nInode) {
         //printf("\n numEro: %i \n iTotal: %i \n stat: %i\n",*p_nInode,p_sb->iTotal,stat);
 
         // se não está clean, então só pode estar dirty
-        if ((stat = soQCheckFDInode(p_sb, &p_itable[offset])) != 0)
-            return stat;
+
+        // check if the inode is dirty
+        if ((stat = soQCheckFDInode(p_sb, &p_itable[offset])) != 0) {
+            // codigo deste if, vem do pdf "manipulacao do cluster de dados", slide 23
+            // "it is, clean it"
+            if ((stat = soCleanInode(&p_itable[offset])) != 0)
+                return stat;
+            if ((stat = soLoadBlockInT(nBlk)) != 0)
+                return stat;
+            p_itable = soGetBlockInT();
+        }
+
 
         /* limpeza do inode
         p_itable[offset].mode = 0;
@@ -146,9 +156,9 @@ int soAllocInode(uint32_t type, uint32_t* p_nInode) {
     }
 
     // atribuição dos valores certos ao inode
-    p_itable[offset].mode = type;           // se e directorio, ficheiro 
-    p_itable[offset].owner = getuid();   // retorna o id do utilizador
-    p_itable[offset].group = getgid();      // retorna o id do grupo
+    p_itable[offset].mode = type; // se e directorio, ficheiro 
+    p_itable[offset].owner = getuid(); // retorna o id do utilizador
+    p_itable[offset].group = getgid(); // retorna o id do grupo
     p_itable[offset].vD1.aTime = p_itable[offset].vD2.mTime = time(NULL);
 
     *p_nInode = p_sb->iHead; /* 1º elemento*/
