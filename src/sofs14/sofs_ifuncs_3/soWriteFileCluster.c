@@ -1,7 +1,7 @@
 /**
  *  \file soWriteFileCluster.c (implementation file)
  *
- *  \author
+ *  \author João Cravo - 63784
  */
 
 #include <stdio.h>
@@ -63,7 +63,63 @@ int soWriteFileCluster (uint32_t nInode, uint32_t clustInd, SODataClust *buff)
 {
   soColorProbe (412, "07;31", "soWriteFileCluster (%"PRIu32", %"PRIu32", %p)\n", nInode, clustInd, buff);
 
-  /* insert your code here */
-
+  int stat; //variavel para o estado de erro
+  uint32_t nBlock, offset; //varaiavel para o numero do bloco e o seu offset
+  uint32_t numDC; //variavel para numero de DataClusters
+  SOSuperBlock *p_sb; //ponteiro para o superbloco
+  SOInode *p_in; //ponteiro para inode
+  
+  //Ler e carregar o Super Bloco
+  if((stat = soLoadSuperBlock()) != 0)
+          return stat;
+  
+  p_sb = soGetSuperBlock();
+  
+  //Verificar parametros clustInd e buff
+  if(clustInd >= N_DIRECT + RPC * (RPC + 1))
+      return -EINVAL;
+  
+  if(buff == NULL)
+      return -EINVAL;
+  
+  //Verificar parametros do nInode
+  if(nInode >= p_sb->iTotal)
+      return -EINVAL;
+  
+  /*
+  //Ler iNode desejado
+  if((stat = soConvertRefInT(nInode, &nBlock, &offset) != 0))
+      return stat;
+  
+  if((stat = soLoadBlockInT(nBlock)) != 0)
+      return stat;
+  
+  p_in = soGetBlockInT();
+ 
+  //Verificar a consistencia do iNode
+  if ((stat = soQCheckInodeIU(p_sb, &p_in[offset])) != 0)
+      return stat;
+  */
+  
+  if ((stat = soReadInode(&p_in[offset],nInode, IUIN)))
+      return stat;
+  
+  //Escrever iNode lido
+  if ((stat = soWriteInode(&p_in[offset], nInode, IUIN)) != 0)
+      return stat;
+	
+  //Obter numero logico do cluster
+  if((stat = soHandleFileCluster(nInode, clustInd, GET, &numDC)) != 0)
+      return stat;
+  
+  //Se não houver um cluster associado
+  if(numDC == NULL_CLUSTER){
+      if((stat = soHandleFileCluster(nInode, clustInd, ALLOC, &numDC)) != 0)
+          return stat;
+  }
+  //Escrever no cluster
+  if((stat = soWriteCacheCluster((p_sb->dZoneStart + (numDC * BLOCKS_PER_CLUSTER)), buff)) != 0)
+      return stat;
+  
   return 0;
 }
