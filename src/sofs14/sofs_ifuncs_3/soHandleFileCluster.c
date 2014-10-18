@@ -198,13 +198,14 @@ int soHandleDirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uint32
             if (NLClt != NULL_CLUSTER) // if the element of direct references already have a cluster associated
                 return -EDCARDYIL;
 
-            if ((stat = soAttachLogicalCluster(p_sb, nInode, clustInd, NLClt)) != 0) // try to attach a file data cluster 
-                return stat;
-
             if ((stat = soAllocDataCluster(nInode, &NLClt)) != 0) // alloc 
                 return stat;
-
-            p_inode->cluCount += 1; // number of data clusters attached to the file               
+            
+            p_inode->d[clustInd] = *p_outVal = NLClt;
+            p_inode->cluCount += 1; // number of data clusters attached to the file
+            
+            if ((stat = soAttachLogicalCluster(p_sb, nInode, clustInd, NLClt)) != 0) // try to attach a file data cluster 
+                return stat;               
 
             return 0;
 
