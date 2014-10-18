@@ -1,7 +1,7 @@
 /**
  *  \file soHandleFileClusters.c (implementation file)
  *
- *  \author
+ *  \author Catia Valente(60155)
  */
 
 #include <stdio.h>
@@ -80,7 +80,100 @@ int soHandleFileClusters (uint32_t nInode, uint32_t clustIndIn, uint32_t op)
 {
   soColorProbe (414, "07;31", "soHandleFileClusters (%"PRIu32", %"PRIu32", %"PRIu32")\n", nInode, clustIndIn, op);
 
-  /* insert your code here */
+ SOSuperBlock* p_sb; //carrega o super block para um ponteiro
+    SOInode inode; //inode onde se vai operar
+    SODataClust *clusti2, *clusti1; //data cluster as a node
+    int stat; //retorno das validações
+    int index, line, column; //variaveis de incremento dos ciclos
+    int status; //estado do inode (dirty state or use state)
 
-  return 0;
+    /* carregar super block para um ponteiro */
+    if ((stat = soLoadSuperBlock()) != 0) return stat;
+    p_sb = soGetSuperBlock();
+
+    /*Validação de Conformidade*/
+    if ((nInode < 0) || (nInode >= p_sb->iTotal)) return -EINVAL; /* verificar se o índice do i-node é válido */
+
+    if (clustIndIn >= MAX_FILE_CLUSTERS) return -EINVAL; /* verificar se o índice do cluster é válido */
+
+    if (op < 2 || op > 4) return -EINVAL; /* verificar se a operação é válida: FREE(2), FREE_CLEAN(3) e CLEAN(4) */
+
+    /* lê o inode */
+    if (op == CLEAN)// FDIN = free inode in dirty state
+    {
+        if ((stat = soReadInode(&inode, nInode, FDIN)) != 0) return stat;
+        status = FDIN;
+    } else //IUIN = inode in use state 
+    {
+        if ((stat = soReadInode(&inode, nInode, IUIN)) != 0) return stat;
+        status = IUIN;
+        if ((inode.mode & INODE_TYPE_MASK) == 0) return -EIUININVAL; //if the inode in use is inconsistent
+    }
+
+
+    /*Referencias duplamente indirectas*/
+
+    if (inode.i2 != NULL_CLUSTER)
+    {
+
+        if ((stat = soLoadSngIndRefClust((inode.i2 * BLOCKS_PER_CLUSTER) + p_sb->dZoneStart)) != 0) return stat; 
+
+        clusti2 = soGetSngIndRefClust(); //pointer to the contents of a specific cluster of the table of single indirect references
+
+        index = N_DIRECT + RPC; //tamanho da tabela das referencias simplesmentre indirectas
+
+        while (inode.i2 != NULL_CLUSTER && index < MAX_FILE_CLUSTERS)
+        {
+            line = (index - (RPC + N_DIRECT)) / RPC;
+            if (clusti2->info.ref[line] != NULL_CLUSTER) 
+            {
+                if ((stat = soLoadDirRefClust((clusti2->info.ref[line] * BLOCKS_PER_CLUSTER) + p_sb->dZoneStart)) != 0) return stat;//????
+
+                clusti1 = soGetDirRefClust(); //pointer to the contents of a specific cluster of the table of direct references
+
+                for (column = ((index - (RPC + N_DIRECT)) % RPC); column < RPC; column++, index++)
+                {
+                    if (clusti1->info.ref[column] != NULL_CLUSTER && clustIndIn <= index) 
+                    {
+                        if ((stat = soHandleFileCluster(nInode, index, op, NULL)) != 0) return stat;
+                        if ((stat = soReadInode(&inode, nInode, status)) != 0) return stat;
+                    }
+                }
+            } 
+            else
+                index += RPC;
+
+        }
+    }
+
+    /*Referencias simplesmente indirectas*/
+    if (inode.i1 != NULL_CLUSTER) //reference to the data cluster that holds the next group of direct references
+    {
+        if ((stat = soLoadDirRefClust((inode.i1 * BLOCKS_PER_CLUSTER) + p_sb->dZoneStart)) != 0) return stat;
+
+        clusti1 = soGetDirRefClust(); //pointer to the contents of a specific cluster of the table of direct references
+
+        index = N_DIRECT;
+
+        while (inode.i1 != NULL_CLUSTER && index < N_DIRECT + RPC)//percorrer as referencias simplesmente indirectas
+        {
+
+            line = index - N_DIRECT; 
+
+            if (clusti1->info.ref[line] != NULL_CLUSTER && clustIndIn <= index) /* verificar se esta referência é para um cluster válido */ {
+                if ((stat = soHandleFileCluster(nInode, index, op, NULL)) != 0) return stat; /* executar a operação de HANDLE pretendida neste cluster */
+                if ((stat = soReadInode(&inode, nInode, status)) != 0) return stat; //leitura do inode
+            }
+            index++;
+        }
+    }
+
+    /*Referencias Directas*/
+    for (index = 0; index < N_DIRECT; index++)/* percorrer as referencias directas */ 
+    {
+        if (inode.d[index] != NULL_CLUSTER && clustIndIn <= index)/* verificar se esta referência é para um cluster válido */
+            if ((stat = soHandleFileCluster(nInode, index, op, NULL)) != 0) return stat; /* executar a operação de HANDLE pretendida neste cluster */
+    }
+
+    return 0;
 }
