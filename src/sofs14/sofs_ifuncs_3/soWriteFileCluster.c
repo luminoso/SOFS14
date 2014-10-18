@@ -67,10 +67,16 @@ int soWriteFileCluster (uint32_t nInode, uint32_t clustInd, SODataClust *buff)
   uint32_t numDC; //variavel para numero dataclusters
   SODataClust *p_dc; //ponteiro para datacluster
   SOSuperBlock *p_sb; //ponteiro para o superbloco
-  SOInode inode; //ponteiro para inode
+  SOInode inode; //variavel para inode
+  
+  //Ler e carregar o Super Bloco
+  if((stat = soLoadSuperBlock()) != 0)
+          return stat;
+  
+  p_sb = soGetSuperBlock();
   
   //Verificar parametros clustInd e buff
-  if(clustInd >= MAX_FILE_CLUSTERS) // ou MAX_FILE_CLUSTERS
+  if(clustInd >= MAX_FILE_CLUSTERS) 
       return -EINVAL;
   
   //Verificar parametros do buff
@@ -81,12 +87,6 @@ int soWriteFileCluster (uint32_t nInode, uint32_t clustInd, SODataClust *buff)
   if(nInode < 1 || nInode >= p_sb->iTotal)
       return -EINVAL;
 	
-  //Ler e carregar o Super Bloco
-  if((stat = soLoadSuperBlock()) != 0)
-          return stat;
-  
-  p_sb = soGetSuperBlock();
-  
   //Obter numero logico do cluster
   if((stat = soHandleFileCluster(nInode, clustInd, GET, &numDC)) != 0)
       return stat;
@@ -98,7 +98,7 @@ int soWriteFileCluster (uint32_t nInode, uint32_t clustInd, SODataClust *buff)
   }
   
   //Carrega o conteudo do cluster especifico
-  if((stat = soLoadDirRefClust(p_sb->dZoneStart+numDC*BLOCKS_PER_CLUSTER) != 0))
+  if((stat = soLoadDirRefClust(p_sb->dZoneStart+numDC*BLOCKS_PER_CLUSTER)) != 0)
       return stat;
   
   //Obter ponteiro para referencia do datacluster
@@ -108,23 +108,19 @@ int soWriteFileCluster (uint32_t nInode, uint32_t clustInd, SODataClust *buff)
   p_dc->info=buff->info;
   
   //Ler inode 
-  if ((stat = soReadInode(&inode,nInode, IUIN)))
+  if((stat = soReadInode(&inode,nInode, IUIN)) != 0)
       return stat;
-  
-  //Verificar a consistencia do iNode
-  //if ((stat = soQCheckInodeIU(p_sb, &inode)) != 0)
-  //    return stat;
-  
+
   //Escrever iNode lido
-  if ((stat = soWriteInode(&inode, nInode, IUIN)) != 0)
+  if((stat = soWriteInode(&inode, nInode, IUIN)) != 0)
       return stat;
   
   //Gravar conteudo do cluster
-  if((stat = soStoreDirRefClust() != 0))
+  if((stat = soStoreDirRefClust()) != 0)
       return stat;
   
   //Gravar conteudo do Super Bloco
-  if((stat = soStoreSuperBlock()))
+  if((stat = soStoreSuperBlock()) != 0)
       return stat;
   
   return 0;
