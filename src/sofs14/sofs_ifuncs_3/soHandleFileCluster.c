@@ -216,6 +216,7 @@ int soHandleDirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uint32
                 return stat;
             
             p_inode->d[clustInd] = NULL_CLUSTER;            // duvida
+            p_inode->cluCount--;
             return 0;
             
         case FREE_CLEAN:
