@@ -143,8 +143,14 @@ int soHandleFileCluster(uint32_t nInode, uint32_t clustInd, uint32_t op, uint32_
 
     if (GET) return 0;
 
-    if ((stat = soWriteInode(&inode, nInode, IUIN)) != 0)
-        return stat;
+    if (op != GET) {
+        if ((stat = soWriteInode(&inode, nInode, IUIN)) != 0)
+            return stat;
+    }
+    if (op == ALLOC) {
+        if ((stat = soAttachLogicalCluster(p_sb, nInode, clustInd, *p_outVal)) != 0) // try to attach a file data cluster 
+            return stat;
+    }
 
     return 0;
 }
@@ -204,8 +210,8 @@ int soHandleDirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uint32
             p_inode->d[clustInd] = *p_outVal = NLClt;
             p_inode->cluCount += 1; // number of data clusters attached to the file
 
-            if ((stat = soAttachLogicalCluster(p_sb, nInode, clustInd, NLClt)) != 0) // try to attach a file data cluster 
-                return stat;
+            //if ((stat = soAttachLogicalCluster(p_sb, nInode, clustInd, NLClt)) != 0) // try to attach a file data cluster 
+            //    return stat;
 
             return 0;
 
@@ -311,9 +317,8 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
                 dc = soGetDirRefClust();
 
                 *p_outVal = dc->info.ref[ref_offset];
-
-                return 0;
             }
+            return 0;
         }
         case ALLOC:
         {
@@ -322,6 +327,7 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
                     return stat;
 
                 p_inode->i1 = nclust;
+                p_inode->cluCount++;
 
                 if ((stat = soLoadDirRefClust(p_sb->dZoneStart + p_inode->i1 * BLOCKS_PER_CLUSTER)) != 0)
                     return stat;
@@ -330,8 +336,6 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
 
                 uint32_t i; // reference position 
                 for (i = 0; i < RPC; i++) dc->info.ref[i] = NULL_CLUSTER;
-
-                p_inode->cluCount++;
 
                 if ((stat = soStoreDirRefClust()) != 0)
                     return stat;
@@ -347,14 +351,13 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
                 return stat;
 
             dc->info.ref[ref_offset] = *p_outVal = nclust;
+            p_inode->cluCount++;
 
             if ((stat = soStoreDirRefClust()) != 0)
                 return stat;
 
-            if ((stat = soAttachLogicalCluster(p_sb, nInode, clustInd, dc->info.ref[ref_offset])) != 0)
-                return stat;
-
-            p_inode->cluCount++;
+            //if ((stat = soAttachLogicalCluster(p_sb, nInode, clustInd, dc->info.ref[ref_offset])) != 0)
+            //    return stat;
 
             return 0;
         }
@@ -595,8 +598,8 @@ int soHandleDIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
 
             dc->info.ref[ref_Doffset] = *p_outVal = *p_nclust;
 
-            if ((stat = soAttachLogicalCluster(p_sb, nInode, clustInd, dc->info.ref[ref_Doffset])) != 0)
-                return stat;
+            //if ((stat = soAttachLogicalCluster(p_sb, nInode, clustInd, dc->info.ref[ref_Doffset])) != 0)
+            //    return stat;
 
             p_inode->cluCount++;
 
@@ -782,7 +785,7 @@ int soAttachLogicalCluster(SOSuperBlock *p_sb, uint32_t nInode, uint32_t clustIn
     SODataClust dc;
 
     /* INICIO ZONA DEBUGGING - CÓDIGO PARA APAGAR */
-    return 0;
+    //return 0;
     /* FIM ZONA DEBUGGING - CÓDIGO PARA APAGAR */
 
     if ((stat = soHandleFileCluster(nInode, clustInd - 1, GET, &ind_prev)) != 0)
