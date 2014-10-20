@@ -372,9 +372,10 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
             if ((stat = soFreeDataCluster(p_dc->info.ref[ref_offset])) != 0)
                 return stat;
 
-            p_dc->info.ref[ref_offset] = NULL_CLUSTER;
-            p_inode->cluCount--;
+            //p_dc->info.ref[ref_offset] = NULL_CLUSTER;
+            //p_inode->cluCount--;
 
+/*
             uint32_t i; // reference position
             
             for (i = 0; i < RPC; i++) {
@@ -387,6 +388,7 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
                 p_inode->cluCount--;
                 p_inode->i1 = NULL_CLUSTER;
             }
+*/
 
             if ((stat = soStoreDirRefClust()) != 0)
                 return stat;
@@ -637,9 +639,9 @@ int soHandleDIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
             if ((stat = soFreeDataCluster(p_dcD->info.ref[ref_Doffset])) != 0)
                 return stat;
 
-            p_dcD->info.ref[ref_Doffset] = NULL_CLUSTER;
-            p_inode->cluCount--;
-
+            //p_dcD->info.ref[ref_Doffset] = NULL_CLUSTER;
+            //p_inode->cluCount--;
+            
             if ((stat = soStoreSngIndRefClust()) != 0)
                 return stat;
 
@@ -666,17 +668,15 @@ int soHandleDIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
 
             p_dcD = soGetDirRefClust();
 
-            if (p_dcD->info.ref[ref_Doffset] == NULL_CLUSTER) {
-                return -EDCNOTIL;
-            } else {
-                if ((stat = soFreeDataCluster(p_dcD->info.ref[ref_Doffset])) != 0)
-                    return stat;
-                if ((stat = soCleanDataCluster(nInode, p_dcD->info.ref[ref_Doffset])) != 0)
-                    return stat;
+            if (p_dcD->info.ref[ref_Doffset] == NULL_CLUSTER) return -EDCNOTIL;
 
-                p_dcD->info.ref[ref_Doffset] = NULL_CLUSTER;
-                p_inode->cluCount--;
-            }
+            if ((stat = soFreeDataCluster(p_dcD->info.ref[ref_Doffset])) != 0)
+                return stat;
+            if ((stat = soCleanDataCluster(nInode, p_dcD->info.ref[ref_Doffset])) != 0)
+                return stat;
+
+            p_dcD->info.ref[ref_Doffset] = NULL_CLUSTER;
+            p_inode->cluCount--;
 
             uint32_t clusterref_pos;
 
