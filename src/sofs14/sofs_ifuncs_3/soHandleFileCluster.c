@@ -514,8 +514,8 @@ int soHandleDIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
 
     uint32_t ref_Soffset, ref_Doffset; // reference positions
     int stat; // function return status control
-    SODataClust *dc = NULL; // pointer to data cluster
-    uint32_t *p_nclust = NULL; // pointer no cluster number
+    SODataClust *dc; // pointer to data cluster
+    uint32_t nclust; // pointer no cluster number
 
     if (op > 4) return -EINVAL;
     
@@ -550,57 +550,67 @@ int soHandleDIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
         case ALLOC:
         {
             if (p_inode->i2 == NULL_CLUSTER) {
-                if ((stat = soAllocDataCluster(nInode, p_nclust)) != 0)
+                if ((stat = soAllocDataCluster(nInode, &nclust)) != 0)
                     return stat;
 
-                p_inode->i2 = *p_nclust;
+                p_inode->i2 = nclust;
+                p_inode->cluCount++;
 
-                if ((stat = soReadCacheCluster(p_sb->dZoneStart + p_inode->i2 * BLOCKS_PER_CLUSTER, dc)) != 0)
+                if ((stat = soLoadSngIndRefClust(p_sb->dZoneStart + p_inode->i2 * BLOCKS_PER_CLUSTER)) != 0)
                     return stat;
+
+                dc = soGetSngIndRefClust();
 
                 uint32_t i; // reference position counter
 
                 for (i = 0; i < RPC; i++) dc->info.ref[i] = NULL_CLUSTER;
 
-                if ((stat = soWriteCacheCluster(p_sb->dZoneStart + p_inode->i2 * BLOCKS_PER_CLUSTER, dc)) != 0)
+                if ((stat = soStoreSngIndRefClust()) != 0)
                     return stat;
-
-                p_inode->cluCount++;
             }
-
             if ((stat = soLoadSngIndRefClust(p_sb->dZoneStart + p_inode->i2 * BLOCKS_PER_CLUSTER)) != 0)
                 return stat;
 
             dc = soGetSngIndRefClust();
 
             if (dc->info.ref[ref_Soffset] == NULL_CLUSTER) {
-                if ((stat = soAllocDataCluster(nInode, p_nclust)) != 0)
+                if ((stat = soAllocDataCluster(nInode, &nclust)) != 0)
                     return stat;
 
-                dc->info.ref[ref_Soffset] = *p_nclust;
-
-                if ((stat = soReadCacheCluster(p_sb->dZoneStart + dc->info.ref[ref_Soffset] * BLOCKS_PER_CLUSTER, dc)) != 0)
+                dc->info.ref[ref_Soffset] = nclust;
+                p_inode->cluCount++;
+                
+                if((stat = soStoreSngIndRefClust())!=0)
                     return stat;
+
+                if ((stat = soLoadDirRefClust(p_sb->dZoneStart + dc->info.ref[ref_Soffset] * BLOCKS_PER_CLUSTER)) != 0)
+                    return stat;
+                
+                dc = soGetDirRefClust();
 
                 uint32_t i; // reference position counter
 
                 for (i = 0; i < RPC; i++) dc->info.ref[i] = NULL_CLUSTER;
 
-                if ((stat = soWriteCacheCluster(p_sb->dZoneStart + dc->info.ref[ref_Soffset] * BLOCKS_PER_CLUSTER, dc)) != 0)
+                if ((stat = soStoreDirRefClust()) != 0)
                     return stat;
-
-                p_inode->cluCount++;
             }
+            if((stat = soLoadSngIndRefClust(p_sb->dZoneStart + p_inode->i2 * BLOCKS_PER_CLUSTER)) != 0)
+                return stat;
+                        
+            dc = soGetSngIndRefClust();
+            
+            if((stat = soLoadDirRefClust(p_sb->dZoneStart + dc->info.ref[ref_Soffset] * BLOCKS_PER_CLUSTER)) !=0)
+                return stat;
+            
+            dc = soGetDirRefClust();
+            
             if (dc->info.ref[ref_Doffset] != NULL_CLUSTER) return -EDCARDYIL;
 
-            if ((stat = soAllocDataCluster(nInode, p_nclust)) != 0)
+            if ((stat = soAllocDataCluster(nInode, &nclust)) != 0)
                 return stat;
 
-            dc->info.ref[ref_Doffset] = *p_outVal = *p_nclust;
-
-            //if ((stat = soAttachLogicalCluster(p_sb, nInode, clustInd, dc->info.ref[ref_Doffset])) != 0)
-            //    return stat;
-
+            dc->info.ref[ref_Doffset] = *p_outVal = nclust;
             p_inode->cluCount++;
 
             if ((stat = soStoreSngIndRefClust()) != 0)
