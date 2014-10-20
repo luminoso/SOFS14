@@ -334,9 +334,9 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
             }
             if ((stat = soLoadDirRefClust(p_sb->dZoneStart + p_inode->i1 * BLOCKS_PER_CLUSTER)) != 0)
                 return stat;
-
+            
             p_dc = soGetDirRefClust();
-
+            
             if (p_dc->info.ref[ref_offset] != NULL_CLUSTER) return -EDCARDYIL;
 
             if ((stat = soAllocDataCluster(nInode, &nclust)) != 0)
@@ -346,6 +346,9 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
             p_inode->cluCount++;
 
             if ((stat = soStoreDirRefClust()) != 0)
+                return stat;
+
+            if ((stat = soWriteInode(p_inode, nInode, IUIN)) != 0)
                 return stat;
 
             if ((stat = soAttachLogicalCluster(p_sb, nInode, clustInd, p_dc->info.ref[ref_offset])) != 0)
