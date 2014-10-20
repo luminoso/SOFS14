@@ -147,15 +147,12 @@ int soHandleFileCluster(uint32_t nInode, uint32_t clustInd, uint32_t op, uint32_
     }
 
     if (op != GET) {
+        printf("clucountPrincipal = %u\n", inode.cluCount);
         // we i'll only need to save inode if operation is different of ET
         if ((stat = soWriteInode(&inode, nInode, IUIN)) != 0)
             return stat;
     }
-    if (op == ALLOC && stat == 0) {
-        // attach is only needed for ALLOC operation
-        if ((stat = soAttachLogicalCluster(p_sb, nInode, clustInd, *p_outVal)) != 0) // try to attach a file data cluster 
-            return stat;
-    }
+    // o write tem de se considerar o caso do clean
     return 0;
 }
 
@@ -207,7 +204,7 @@ int soHandleDirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uint32
 
             if ((stat = soAllocDataCluster(nInode, &NLClt)) != 0) // alloc 
                 return stat;
-
+            //chamar attach
             p_inode->d[clustInd] = *p_outVal = NLClt;
             p_inode->cluCount += 1; // number of data clusters attached to the file
             
@@ -219,9 +216,6 @@ int soHandleDirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uint32
             if ((stat = soFreeDataCluster(NLClt)) != 0)
                 return stat;
 
-            p_inode->d[clustInd] = NULL_CLUSTER; // duvida
-            p_inode->cluCount--;
-            
             return 0;
         }
         case FREE_CLEAN:{
@@ -329,7 +323,7 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
 
                 if ((stat = soLoadDirRefClust(p_sb->dZoneStart + p_inode->i1 * BLOCKS_PER_CLUSTER)) != 0)
                     return stat;
-
+                //ponteiro comecar com p_
                 dc = soGetDirRefClust();
 
                 uint32_t i; // reference position 
@@ -356,7 +350,7 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
 
             //if ((stat = soAttachLogicalCluster(p_sb, nInode, clustInd, dc->info.ref[ref_offset])) != 0)
             //    return stat;
-
+            printf("clucount = %u\n", p_inode->cluCount);
             return 0;
         }
         case FREE:

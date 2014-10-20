@@ -63,10 +63,6 @@ int soWriteInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
 
 	p_sb = soGetSuperBlock();
 
-	//Quick check on the super block consistency
-	if((stat = soQCheckSuperBlock(p_sb)) != 0)
-    	return stat;
-
     //Quick check on the inode Table consistency
     if((stat = soQCheckInT(p_sb)) != 0)
     	return stat;
@@ -93,14 +89,15 @@ int soWriteInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
 	//get a pointer to the block containing the inode we want
 	p_in = soGetBlockInT();
 
+    //copy the inode data to the inode we want
+	memcpy(&p_in[offset], p_inode, sizeof(SOInode));
 
 	//Quick check of the inode in use consistency
 	if(status == IUIN){
 		if((stat = soQCheckInodeIU(p_sb, &p_in[offset])) != 0)
 			return stat;
 
-		//copy the inode data to the inode we want
-		memcpy(&p_in[offset], p_inode, sizeof(SOInode));
+		
 
 		//update the access time and modified time to the current time
 		p_in[offset].vD1.aTime = time(NULL);
@@ -113,8 +110,6 @@ int soWriteInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
 		if((stat = soQCheckFDInode(p_sb, &p_in[offset])) != 0)
 			return stat;
 
-		//copy the inode data to the inode we want
-		memcpy(&p_in[offset], p_inode, sizeof(SOInode));
 	}
 		
 
