@@ -147,7 +147,7 @@ int soHandleFileCluster(uint32_t nInode, uint32_t clustInd, uint32_t op, uint32_
         if ((stat = soWriteInode(&inode, nInode, IUIN)) != 0)
             return stat;
     }
-    if (op == ALLOC) {
+    if (op == ALLOC && stat == 0) {
         if ((stat = soAttachLogicalCluster(p_sb, nInode, clustInd, *p_outVal)) != 0) // try to attach a file data cluster 
             return stat;
     }
