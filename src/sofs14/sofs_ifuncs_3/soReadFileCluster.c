@@ -1,7 +1,7 @@
 /**
  *  \file soReadFileCluster.c (implementation file)
  *
- *  \author
+ *  \author Gabriel Vieira
  */
 
 #include <stdio.h>
@@ -120,6 +120,7 @@ int soReadFileCluster (uint32_t nInode, uint32_t clustInd, SODataClust *buff)
 
 
    /* Load the contents of a specific cluster of the table of direct references to data clusters into internal storage */
+   // SEGMENTATION FAULT: falta verificar se inode.d é null_cluster
   if( (stat = soLoadDirRefClust(inode.d[clustInd])) != 0)
     return stat;            /*nClust = inode.d[clustInd]*/ 
 
