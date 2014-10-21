@@ -211,50 +211,26 @@ int soHandleDirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uint32
             return 0;
         }
         case FREE:
-        {
-            if (NLClt == NULL_CLUSTER)
-                return -EDCNOTIL;
-            if ((stat = soFreeDataCluster(NLClt)) != 0)
-                return stat;
-
-            return 0;
-        }
+        
         case FREE_CLEAN:
+       
+        case CLEAN:
         {
-            if (NLClt == NULL_CLUSTER)
+            if (NLClt == NULL_CLUSTER)                      // verification for all
                 return -EDCNOTIL;
-
-            if ((stat = soFreeDataCluster(NLClt)) != 0)
-                return stat;
-
-            if ((stat = soCleanLogicalCluster(p_sb, nInode, NLClt)) != 0)
-                return stat;
-
-            p_inode->cluCount -= 1;
-            p_inode->d[clustInd] = NULL_CLUSTER; // duvida
-
-            /*
-            if (op != CLEAN) {
+            
+            if (op != CLEAN)
+            {
                 if ((stat = soFreeDataCluster(NLClt)) != 0)
-                    return stat;
-                if (op == FREE)
+                    return stat;    
+                if (op == FREE)                             // all is done, terminate
                     return 0;
             }
             if ((stat = soCleanLogicalCluster(p_sb, nInode, NLClt)) != 0)
                 return stat;
-            p_inode->d[clustInd] = NULL_CLUSTER;
-             */
-            return 0;
-        }
-        case CLEAN:
-        {
-            if (NLClt == NULL_CLUSTER)
-                return -EDCNOTIL;
-            if ((stat = soCleanLogicalCluster(p_sb, nInode, NLClt)) != 0)
-                return stat;
-            p_inode->cluCount -= 1; // decrement number of data clusters attached to a file
 
-            p_inode->d[clustInd] = NULL_CLUSTER; // duvida
+            p_inode->cluCount -= 1;
+            p_inode->d[clustInd] = NULL_CLUSTER; 
             return 0;
         }
         default: return -EINVAL;
