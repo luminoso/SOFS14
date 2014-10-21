@@ -67,7 +67,6 @@ int soWriteFileCluster (uint32_t nInode, uint32_t clustInd, SODataClust *buff)
   uint32_t numDC; //variavel para numero dataclusters
   SODataClust *p_dc; //ponteiro para datacluster
   SOSuperBlock *p_sb; //ponteiro para o superbloco
-  SOInode inode; //variavel para inode
   
   //Ler e carregar o Super Bloco
   if((stat = soLoadSuperBlock()) != 0)
@@ -106,14 +105,6 @@ int soWriteFileCluster (uint32_t nInode, uint32_t clustInd, SODataClust *buff)
   
   //Copiar info do buff para o datacluster
   p_dc->info=buff->info;
-  
-  //Ler inode 
-  if((stat = soReadInode(&inode,nInode, IUIN)) != 0)
-      return stat;
-
-  //Escrever iNode lido
-  if((stat = soWriteInode(&inode, nInode, IUIN)) != 0)
-      return stat;
   
   //Gravar conteudo do cluster
   if((stat = soStoreDirRefClust()) != 0)
