@@ -193,9 +193,7 @@ int soHandleDirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uint32
 
     /* requested operation is invalid */
     if (op > 4)
-        return -EINVAL;
-
-    p_outVal = NULL;                        // if nothing changes, return null                    
+        return -EINVAL;   
     
     switch (op) {
         case GET:
@@ -222,6 +220,8 @@ int soHandleDirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uint32
 
         case CLEAN:
         {
+             p_outVal = NULL;
+             
             if (NLClt == NULL_CLUSTER) // verification for all
                 return -EDCNOTIL;
 
