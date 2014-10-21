@@ -191,6 +191,8 @@ int soHandleDirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uint32
     if (op > 4)
         return -EINVAL;
 
+    p_outVal = NULL;                        // if nothing changes, return null                    
+    
     switch (op) {
         case GET:
         {
@@ -204,7 +206,7 @@ int soHandleDirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uint32
 
             if ((stat = soAllocDataCluster(nInode, &NLClt)) != 0) // alloc 
                 return stat;
-            //chamar attach
+            soAttachLogicalCluster(p_sb,nInode, clustInd, NLClt); //chamar attach
             p_inode->d[clustInd] = *p_outVal = NLClt;
             p_inode->cluCount += 1; // number of data clusters attached to the file
 
@@ -223,7 +225,7 @@ int soHandleDirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uint32
             {
                 if ((stat = soFreeDataCluster(NLClt)) != 0)
                     return stat;    
-                if (op == FREE)                             // all is done, terminate
+                if (op == FREE)                             // all is done for FREE, terminate
                     return 0;
             }
             if ((stat = soCleanLogicalCluster(p_sb, nInode, NLClt)) != 0)
