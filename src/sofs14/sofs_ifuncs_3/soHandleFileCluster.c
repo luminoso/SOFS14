@@ -575,17 +575,18 @@ int soHandleDIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
                     return stat;
                 p_dcS->info.ref[ref_Soffset] = NULL_CLUSTER;
                 p_inode->cluCount--;
-            }
 
-            for (clusterref_pos = 0; clusterref_pos < RPC; clusterref_pos++) {
-                if (p_dcS->info.ref[clusterref_pos] != NULL_CLUSTER) break;
-            }
 
-            if (clusterref_pos == RPC) {
-                if ((stat = soCleanDataCluster(nInode, p_inode->i2)) != 0)
-                    return stat;
-                p_inode->i2 = NULL_CLUSTER;
-                p_inode->cluCount--;
+                for (clusterref_pos = 0; clusterref_pos < RPC; clusterref_pos++) {
+                    if (p_dcS->info.ref[clusterref_pos] != NULL_CLUSTER) break;
+                }
+
+                if (clusterref_pos == RPC) {
+                    if ((stat = soCleanDataCluster(nInode, p_inode->i2)) != 0)
+                        return stat;
+                    p_inode->i2 = NULL_CLUSTER;
+                    p_inode->cluCount--;
+                }
             }
 
             if ((stat = soStoreSngIndRefClust()) != 0)
