@@ -150,7 +150,7 @@ int soHandleFileCluster(uint32_t nInode, uint32_t clustInd, uint32_t op, uint32_
     if (op == CLEAN) {
         if ((stat = soWriteInode(&inode, nInode, FDIN)) != 0)
             return stat;
-    } else {
+    } else if(op != GET){
         if ((stat = soWriteInode(&inode, nInode, IUIN)) != 0)
             return stat;
     }
@@ -208,7 +208,8 @@ int soHandleDirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uint32
 
             if ((stat = soAllocDataCluster(nInode, &NLClt)) != 0) // alloc 
                 return stat;
-            soAttachLogicalCluster(p_sb,nInode, clustInd, NLClt); //chamar attach
+            if((stat = soAttachLogicalCluster(p_sb,nInode, clustInd, NLClt)) != 0)
+                return stat;
             p_inode->d[clustInd] = *p_outVal = NLClt;
             p_inode->cluCount += 1; // number of data clusters attached to the file
 
@@ -279,7 +280,8 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
     if (op > 4) return -EINVAL;
 
     // calculate the offset for the single indirect reference
-    ref_offset = (clustInd - N_DIRECT) % RPC;
+    //ref_offset = (clustInd - N_DIRECT) % RPC;
+    ref_offset = clustInd - N_DIRECT;
 
     switch (op) {
         case GET:
@@ -307,7 +309,7 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
 
                 if ((stat = soLoadDirRefClust(p_sb->dZoneStart + p_inode->i1 * BLOCKS_PER_CLUSTER)) != 0)
                     return stat;
-                //ponteiro comecar com p_
+                
                 p_dc = soGetDirRefClust();
 
                 uint32_t i; // reference position 
@@ -330,9 +332,6 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
             p_inode->cluCount++;
 
             if ((stat = soStoreDirRefClust()) != 0)
-                return stat;
-
-            if ((stat = soWriteInode(p_inode, nInode, IUIN)) != 0)
                 return stat;
 
             if ((stat = soAttachLogicalCluster(p_sb, nInode, clustInd, p_dc->info.ref[ref_offset])) != 0)
@@ -364,7 +363,7 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
                     return 0;
             }
 
-            if ((stat = soCleanDataCluster(nInode, p_dc->info.ref[ref_offset])) != 0)
+            if ((stat = soCleanLogicalCluster(p_sb, nInode, p_dc->info.ref[ref_offset])) != 0)
                 return 0;
 
             p_dc->info.ref[ref_offset] = NULL_CLUSTER;
@@ -376,14 +375,20 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
             }
 
             if (clusterref_pos == RPC) {
-                if ((stat = soCleanDataCluster(nInode, p_inode->i1)) != 0)
+                if ((stat = soStoreDirRefClust()) != 0)
                     return stat;
-                p_inode->i1 = NULL_CLUSTER;
-                p_inode->cluCount--;
+                //if((stat = soFreeDataCluster(p_inode->i1))!=0)
+                //    return stat;
+                if ((stat = soCleanLogicalCluster(p_sb, nInode, p_inode->i1)) != 0)
+                    return stat;
+                //p_inode->i1 = NULL_CLUSTER;
+                //p_inode->cluCount--;
+                return 0;
             }
             if ((stat = soStoreDirRefClust()) != 0)
                 return stat;
-
+            
+            return 0;
         }
         default:
         {
@@ -558,7 +563,7 @@ int soHandleDIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
                 if (op == FREE)
                     return 0;
             }
-            if ((stat = soCleanDataCluster(nInode, p_dcD->info.ref[ref_Doffset])) != 0)
+            if ((stat = soCleanLogicalCluster(p_sb, nInode, p_dcD->info.ref[ref_Doffset])) != 0)
                 return stat;
 
             p_dcD->info.ref[ref_Doffset] = NULL_CLUSTER;
@@ -569,24 +574,32 @@ int soHandleDIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
             for (clusterref_pos = 0; clusterref_pos < RPC; clusterref_pos++) {
                 if (p_dcD->info.ref[clusterref_pos] != NULL_CLUSTER) break;
             }
-
+            
             if (clusterref_pos == RPC) {
-                if ((stat = soCleanDataCluster(nInode, p_dcS->info.ref[ref_Soffset]) != 0))
+                if ((stat = soStoreDirRefClust()) != 0)
+                    return stat;
+                if ((stat = soCleanLogicalCluster(p_sb, nInode, p_dcS->info.ref[ref_Soffset]) != 0))
                     return stat;
                 p_dcS->info.ref[ref_Soffset] = NULL_CLUSTER;
                 p_inode->cluCount--;
-
+                
+                if ((stat = soStoreSngIndRefClust()) != 0)
+                return stat;
 
                 for (clusterref_pos = 0; clusterref_pos < RPC; clusterref_pos++) {
                     if (p_dcS->info.ref[clusterref_pos] != NULL_CLUSTER) break;
                 }
 
                 if (clusterref_pos == RPC) {
-                    if ((stat = soCleanDataCluster(nInode, p_inode->i2)) != 0)
+                    if ((stat = soStoreSngIndRefClust()) != 0)
+                        return stat;
+                    if ((stat = soCleanLogicalCluster(p_sb, nInode, p_inode->i2)) != 0)
                         return stat;
                     p_inode->i2 = NULL_CLUSTER;
                     p_inode->cluCount--;
+                    return 0;
                 }
+                return 0;
             }
 
             if ((stat = soStoreSngIndRefClust()) != 0)
@@ -594,6 +607,8 @@ int soHandleDIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
 
             if ((stat = soStoreDirRefClust()) != 0)
                 return stat;
+
+            return 0;
         }
         default:
         {
@@ -666,7 +681,7 @@ int soAttachLogicalCluster(SOSuperBlock *p_sb, uint32_t nInode, uint32_t clustIn
 int soCleanLogicalCluster(SOSuperBlock *p_sb, uint32_t nInode, uint32_t nLClust) {
 
     int stat; // function return status control 
-    SODataClust dc; // datacluster to be retrieved, modified and saved
+    SODataClust dc; // data cluster to be retrieved, modified and saved
 
     // read the data cluster, converting it's logical number to physical number
     if ((stat = soReadCacheCluster(p_sb->dZoneStart + nLClust * BLOCKS_PER_CLUSTER, &dc)) != 0)
