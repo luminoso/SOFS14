@@ -236,7 +236,7 @@ int soHandleDirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uint32
                 return stat;
 
             p_inode->cluCount -= 1;
-            //p_inode->d[clustInd] = NULL_CLUSTER;
+            p_inode->d[clustInd] = NULL_CLUSTER;
             return 0;
         }
         default: return -EINVAL;
@@ -341,10 +341,6 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
             
             if ((stat = soStoreDirRefClust()) != 0)
                 return stat;
-            
-            //DEBUG
-            if ((stat = soWriteInode(p_inode, nInode, IUIN)) != 0)
-                printf("\ndeu merda");
 
             if ((stat = soAttachLogicalCluster(p_sb, nInode, clustInd, p_dc->info.ref[ref_offset])) != 0)
                 return stat;
@@ -382,7 +378,7 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
             if ((stat = soCleanLogicalCluster(p_sb, nInode, p_dc->info.ref[ref_offset])) != 0)
                 return 0;
 
-            //p_dc->info.ref[ref_offset] = NULL_CLUSTER;
+            p_dc->info.ref[ref_offset] = NULL_CLUSTER;
             p_inode->cluCount--;
 
             uint32_t clusterref_pos;
@@ -396,7 +392,7 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
                 if ((stat = soCleanLogicalCluster(p_sb, nInode, p_inode->i1)) != 0)
                     return stat;
                 p_inode->cluCount--;
-                
+                p_inode->i1 = NULL_CLUSTER;
                 return 0;
             }
             if ((stat = soStoreDirRefClust()) != 0)
@@ -654,14 +650,14 @@ int soAttachLogicalCluster(SOSuperBlock *p_sb, uint32_t nInode, uint32_t clustIn
         ind_prev = NULL_CLUSTER;
     } else {
         if ((stat = soHandleFileCluster(nInode, clustInd - 1, GET, &ind_prev)) != 0)
-            return stat;
+            return 0;
     }
 
     if (clustInd == MAX_FILE_CLUSTERS) {
         ind_next = NULL_CLUSTER;
     } else {
         if ((stat = soHandleFileCluster(nInode, clustInd + 1, GET, &ind_next)) != 0)
-            return stat;
+            return 0;
     }
 
     if ((ind_prev != NULL_CLUSTER) || (ind_next != NULL_CLUSTER)) {
