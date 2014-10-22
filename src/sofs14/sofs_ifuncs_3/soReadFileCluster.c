@@ -92,9 +92,14 @@ int soReadFileCluster (uint32_t nInode, uint32_t clustInd, SODataClust *buff)
   	return -EINVAL;
 
    /*if index to the list of direct references are out of range*/
-  if(clustInd > MAX_FILE_CLUSTERS)
+  if(clustInd >= MAX_FILE_CLUSTERS)
     return -EINVAL;
 
+    // check if inode belong one of legal file types
+  if ((inode.mode & INODE_TYPE_MASK) != INODE_DIR)
+   if ((inode.mode & INODE_TYPE_MASK) != INODE_FILE)
+     if ((inode.mode & INODE_TYPE_MASK) != INODE_SYMLINK)
+      return -EIUININVAL;
 
   /* //load inode table
   if ( (stat = soConvertRefInT(nInode, &nBlk, &offset)) != 0)
@@ -111,14 +116,15 @@ int soReadFileCluster (uint32_t nInode, uint32_t clustInd, SODataClust *buff)
    if((stat = soReadInode(&inode, nInode, IUIN)) != 0)
     return stat; 
   
-
   /*testar consistencia do nó I*, if the list of data cluster references belonging to an inode is inconsistent, and
     if datacluster header is inconsistent*/
 
   if( (stat = soQCheckInodeIU(p_sb, &inode)) != 0)
     return stat; /*return -EIUININVAL and -ELDCININVAL and -EDCINVAL*/
 
-
+ // if(inode.d[clustInd] == NULL)
+   // return -EINVAL;  
+      
    /* Load the contents of a specific cluster of the table of direct references to data clusters into internal storage */
    // SEGMENTATION FAULT: falta verificar se inode.d é null_cluster
   if( (stat = soLoadDirRefClust(inode.d[clustInd])) != 0)
