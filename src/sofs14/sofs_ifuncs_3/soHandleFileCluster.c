@@ -377,12 +377,10 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
             if (clusterref_pos == RPC) {
                 if ((stat = soStoreDirRefClust()) != 0)
                     return stat;
-                //if((stat = soFreeDataCluster(p_inode->i1))!=0)
-                //    return stat;
                 if ((stat = soCleanLogicalCluster(p_sb, nInode, p_inode->i1)) != 0)
                     return stat;
-                //p_inode->i1 = NULL_CLUSTER;
-                //p_inode->cluCount--;
+                p_inode->cluCount--;
+                
                 return 0;
             }
             if ((stat = soStoreDirRefClust()) != 0)
@@ -580,7 +578,7 @@ int soHandleDIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
                     return stat;
                 if ((stat = soCleanLogicalCluster(p_sb, nInode, p_dcS->info.ref[ref_Soffset]) != 0))
                     return stat;
-                p_dcS->info.ref[ref_Soffset] = NULL_CLUSTER;
+                //p_dcS->info.ref[ref_Soffset] = NULL_CLUSTER;
                 p_inode->cluCount--;
                 
                 if ((stat = soStoreSngIndRefClust()) != 0)
@@ -595,7 +593,7 @@ int soHandleDIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
                         return stat;
                     if ((stat = soCleanLogicalCluster(p_sb, nInode, p_inode->i2)) != 0)
                         return stat;
-                    p_inode->i2 = NULL_CLUSTER;
+                    //p_inode->i2 = NULL_CLUSTER;
                     p_inode->cluCount--;
                     return 0;
                 }
@@ -643,21 +641,32 @@ int soAttachLogicalCluster(SOSuperBlock *p_sb, uint32_t nInode, uint32_t clustIn
     uint32_t ind_prev, ind_next; // logical cluster number of adjacent clusters
     SODataClust dc; // data cluster to be updated
 
-    if ((stat = soHandleFileCluster(nInode, clustInd - 1, GET, &ind_prev)) != 0)
-        return stat;
+    if (clustInd == 0) {
+        ind_prev = NULL_CLUSTER;
+    } else {
+        if ((stat = soHandleFileCluster(nInode, clustInd - 1, GET, &ind_prev)) != 0)
+            return stat;
+    }
 
-    if ((stat = soHandleFileCluster(nInode, clustInd + 1, GET, &ind_next)) != 0)
-        return stat;
+    if (clustInd == MAX_FILE_CLUSTERS) {
+        ind_next = NULL_CLUSTER;
+    } else {
+        if ((stat = soHandleFileCluster(nInode, clustInd + 1, GET, &ind_next)) != 0)
+            return stat;
+    }
 
-    if ((stat = soReadCacheCluster(p_sb->dZoneStart + nLClust * BLOCKS_PER_CLUSTER, &dc)) != 0)
-        return stat;
+    if ((ind_prev != NULL_CLUSTER) || (ind_next != NULL_CLUSTER)) {
 
-    if (ind_prev != NULL_CLUSTER) dc.prev = ind_prev;
+        if ((stat = soReadCacheCluster(p_sb->dZoneStart + nLClust * BLOCKS_PER_CLUSTER, &dc)) != 0)
+            return stat;
 
-    if (ind_next != NULL_CLUSTER) dc.next = ind_next;
+        if (ind_prev != NULL_CLUSTER) dc.prev = ind_prev;
 
-    if ((stat = soWriteCacheCluster(p_sb->dZoneStart + nLClust * BLOCKS_PER_CLUSTER, &dc)) != 0)
-        return stat;
+        if (ind_next != NULL_CLUSTER) dc.next = ind_next;
+
+        if ((stat = soWriteCacheCluster(p_sb->dZoneStart + nLClust * BLOCKS_PER_CLUSTER, &dc)) != 0)
+            return stat;
+    }
 
     return 0;
 }
