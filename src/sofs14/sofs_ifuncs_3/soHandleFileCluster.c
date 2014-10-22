@@ -236,7 +236,7 @@ int soHandleDirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uint32
                 return stat;
 
             p_inode->cluCount -= 1;
-            p_inode->d[clustInd] = NULL_CLUSTER;
+            //p_inode->d[clustInd] = NULL_CLUSTER;
             return 0;
         }
         default: return -EINVAL;
@@ -327,13 +327,24 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
             
             if ((stat = soAllocDataCluster(nInode, &nclust)) != 0)
                 return stat;
+            
+            if ((stat = soLoadDirRefClust(p_sb->dZoneStart + p_inode->i1 * BLOCKS_PER_CLUSTER)) != 0)
+                return stat;
+
+            p_dc = soGetDirRefClust();
 
             p_dc->info.ref[ref_offset] = *p_outVal = nclust;
             p_inode->cluCount++;
             
+            if ((stat = soStoreDirRefClust()) != 0)
+                return stat;
+            
+            if ((stat = soStoreDirRefClust()) != 0)
+                return stat;
+            
             //DEBUG
             if ((stat = soWriteInode(p_inode, nInode, IUIN)) != 0)
-                return stat;
+                printf("\ndeu merda");
 
             if ((stat = soAttachLogicalCluster(p_sb, nInode, clustInd, p_dc->info.ref[ref_offset])) != 0)
                 return stat;
@@ -371,7 +382,7 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
             if ((stat = soCleanLogicalCluster(p_sb, nInode, p_dc->info.ref[ref_offset])) != 0)
                 return 0;
 
-            p_dc->info.ref[ref_offset] = NULL_CLUSTER;
+            //p_dc->info.ref[ref_offset] = NULL_CLUSTER;
             p_inode->cluCount--;
 
             uint32_t clusterref_pos;
@@ -611,7 +622,6 @@ int soHandleDIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
         {
             p_outVal = NULL;
             return -EINVAL;
-
         }
     }
     return 0;
