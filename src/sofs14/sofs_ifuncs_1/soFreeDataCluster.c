@@ -62,7 +62,7 @@ int soFreeDataCluster(uint32_t nClust) {
 
     // get superblock pointer data
     p_sb = soGetSuperBlock();
-
+    
     // check if the data cluster number is in the right range
     if (nClust > p_sb->dZoneTotal || nClust == 0 ) return -EINVAL;
 
@@ -80,8 +80,8 @@ int soFreeDataCluster(uint32_t nClust) {
     if ((stat = soQCheckStatDC(p_sb, nClust, &dc_status)) != 0)
         return stat;
 
-    if (dc_status != ALLOC_CLT) return -EDCNALINVAL;
-
+    //if (dc_status != ALLOC_CLT) return -EDCNALINVAL;
+        
     // end of validations. proceed to data cluster freeing 
 
     // data cluster isn't in a double linked list anymore
@@ -99,11 +99,11 @@ int soFreeDataCluster(uint32_t nClust) {
     // write data cluster new information
     if ((stat = soWriteCacheCluster(NFClt, &datacluster)) != 0)
         return stat;
-
+    
     // save super block new information
     if ((stat = soStoreSuperBlock()) != 0)
         return stat;
-
+    
     return 0;
 }
 
@@ -128,9 +128,9 @@ int soDeplete(SOSuperBlock *p_sb) {
     /* 1- check if there's still data clusters blocks in the linked list
      * 2- if so, connect dZoneInsert cache first position to dTail.next
      */
-
+    
     if (p_sb->dTail != NULL_CLUSTER) {
-        
+
         NFClt = p_sb->dZoneStart + p_sb->dTail*BLOCKS_PER_CLUSTER;
 
         if ((stat = soReadCacheCluster(NFClt, &datacluster)) != 0)
@@ -184,7 +184,7 @@ int soDeplete(SOSuperBlock *p_sb) {
             if ((stat = soWriteCacheCluster(NFClt, &datacluster)) != 0)
                 return stat;
         } else { // for the last cache position
-            NFClt = p_sb->dZoneStart + p_sb->dZoneInsert.cache[k] * BLOCKS_PER_CLUSTER;
+            NFClt = p_sb->dZoneStart + p_sb->dZoneInsert.cache[p_sb->dZoneInsert.cacheIdx - 1] * BLOCKS_PER_CLUSTER;
             
             if ((stat = soReadCacheCluster(NFClt, &datacluster)) != 0)
                 return stat;
