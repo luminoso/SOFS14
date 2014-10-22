@@ -54,7 +54,6 @@ int soFreeDataCluster(uint32_t nClust) {
     SOSuperBlock *p_sb;         // super block pointer
     uint32_t NFClt;             // data cluster physical position
     SODataClust datacluster;
-    uint32_t dc_status;         // data cluster allocation status
 
     // load super block
     if ((stat = soLoadSuperBlock()) != 0)
@@ -75,12 +74,6 @@ int soFreeDataCluster(uint32_t nClust) {
 
     // check if the data cluster was allocated
     if (datacluster.stat == NULL_INODE) return -EDCNALINVAL;
-
-    // check of the allocation status of a data cluster
-    if ((stat = soQCheckStatDC(p_sb, nClust, &dc_status)) != 0)
-        return stat;
-
-    //if (dc_status != ALLOC_CLT) return -EDCNALINVAL;
         
     // end of validations. proceed to data cluster freeing 
 
@@ -90,6 +83,13 @@ int soFreeDataCluster(uint32_t nClust) {
     // check if the insert cache is full. if it is, deplete it
     if (p_sb->dZoneInsert.cacheIdx == DZONE_CACHE_SIZE)
         soDeplete(p_sb);
+
+    // load super block
+    if ((stat = soLoadSuperBlock()) != 0)
+        return stat;
+
+    // get superblock pointer data
+    p_sb = soGetSuperBlock();
 
     // insert freed data cluster in insert cache list
     p_sb->dZoneInsert.cache[p_sb->dZoneInsert.cacheIdx] = nClust;
