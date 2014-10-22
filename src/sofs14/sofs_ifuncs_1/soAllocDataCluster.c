@@ -64,7 +64,7 @@ int soAllocDataCluster(uint32_t nInode, uint32_t *p_nClust) {
     soColorProbe(613, "07;33", "soAllocDataCluster (%"PRIu32", %p)\n", nInode, p_nClust);
 
     int stat; // variavel para o estado de erro
-    uint32_t nClust, clusterStat, NFClt; //variaveis para localizar o inode pretendido, e o cluster, contem variavel extra usada no teste de consistencia do header do cluster e outra para calcular o numero fisico do bloco
+    uint32_t nClust, clusterStat, NFClt; //variaveis para localizar o cluster, contem variavel extra usada no teste de consistencia do header do cluster
     SOSuperBlock *p_sb; //ponteiro para o superbloco
     SODataClust cluster; //ponteiro para o cluster que vai ser reservado
 
@@ -87,26 +87,6 @@ int soAllocDataCluster(uint32_t nInode, uint32_t *p_nClust) {
     //verificar se ha clusters livres
     if (p_sb->dZoneFree == 0)
         return -ENOSPC;
-
-    /*
-    //carregar inode pretendido
-    if ((stat = soConvertRefInT(nInode, &nBlock, &offset)) != 0)
-        return stat;
-
-    if ((stat = soLoadBlockInT(nBlock)) != 0)
-        return stat;
-
-    p_inode = soGetBlockInT();
-
-    duvida se esta verificação tem de sair, nao diz nos slides para fazer 
-    //teste de consistencia ao inode
-    //if ((stat = soQCheckInodeIU(p_sb, &p_inode[offset])) != 0)
-    //    return stat;
-
-    //guardar o inode so precisavamos de testar a consistencia
-    if ((stat = soStoreBlockInT()) != 0)
-        return stat;
-    */
 
     //se a cache estiver vazia, enche-la
     if (p_sb->dZoneRetriev.cacheIdx == DZONE_CACHE_SIZE)
