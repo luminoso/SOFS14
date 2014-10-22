@@ -64,24 +64,17 @@ int soReadFileCluster (uint32_t nInode, uint32_t clustInd, SODataClust *buff)
 {
   soColorProbe (411, "07;31", "soReadFileCluster (%"PRIu32", %"PRIu32", %p)\n", nInode, clustInd, buff);
 
-  int stat;  // variavel de estado
+  int stat, i;  // variavel de estado, variavel para ciclos
   SOSuperBlock *p_sb; // ponteiro para o superbloco
-  //uint32_t offset, nBlk;	// variável para o numero do bloco e seu offset
   SOInode inode;		//   nó I
-  SODataClust *p_directClust;
-  uint32_t physicalNumCluster;
-  uint32_t num_logic, clusterStat; // variaveis usadas para o cluster 
-
-  int i; // variavel auxiliar para ciclos
+  SODataClust cluster;
+  uint32_t numDC, nFClust;
 
   /*Load superblock */
   if( (stat = soLoadSuperBlock()) != 0)
   	return stat;
 
   p_sb = soGetSuperBlock(); /* super bloco carregado*/
-
-  if((stat = soQCheckSuperBlock(p_sb)) != 0) /* quick check of the superblock metadata */
-    return stat;
 
    /* if the inode number is out of range */
   if(nInode >= p_sb->iTotal)
@@ -95,78 +88,32 @@ int soReadFileCluster (uint32_t nInode, uint32_t clustInd, SODataClust *buff)
   if(clustInd >= MAX_FILE_CLUSTERS)
     return -EINVAL;
 
-    // check if inode belong one of legal file types
-  if ((inode.mode & INODE_TYPE_MASK) != INODE_DIR)
-   if ((inode.mode & INODE_TYPE_MASK) != INODE_FILE)
-     if ((inode.mode & INODE_TYPE_MASK) != INODE_SYMLINK)
-      return -EIUININVAL;
-
-  /* //load inode table
-  if ( (stat = soConvertRefInT(nInode, &nBlk, &offset)) != 0)
+  //read inode, also checks consistency
+  if((stat = soReadInode(&inode, nInode, IUIN)) != 0)
     return stat;
 
-  Load the content of a specific block inode
-  if( (stat = soLoadBlockInT(nBlk)) != 0)
-    return stat;*/
-
-    /*Get a pointer to the contents of a specific block of the table of inodes*/
- // p_inode = soGetBlockInT();
-
-    /*the inode must be in use, load inode table, load the content of a specific block inode*/ 
-   if((stat = soReadInode(&inode, nInode, IUIN)) != 0)
-    return stat; 
-  
-  /*testar consistencia do nó I*, if the list of data cluster references belonging to an inode is inconsistent, and
-    if datacluster header is inconsistent*/
-
-  if( (stat = soQCheckInodeIU(p_sb, &inode)) != 0)
-    return stat; /*return -EIUININVAL and -ELDCININVAL and -EDCINVAL*/
-
- // if(inode.d[clustInd] == NULL)
-   // return -EINVAL;  
-      
-   /* Load the contents of a specific cluster of the table of direct references to data clusters into internal storage */
-   // SEGMENTATION FAULT: falta verificar se inode.d é null_cluster
-  if( (stat = soLoadDirRefClust(inode.d[clustInd])) != 0)
-    return stat;            /*nClust = inode.d[clustInd]*/ 
-
-      /*Get a pointer to the contents of a specific cluster of the table of direct references to data clusters*/
-  p_directClust = soGetDirRefClust();  
-
-  /*if the list of data cluster references belonging to the inode is inconsistent*/
-  if( (stat = soQCheckStatDC(p_sb, inode.d[clustInd], &clusterStat)) != 0)
-    return stat;
-
-  //if(clustInd < N_DIRECT)
-  if( (stat = soHandleFileCluster(nInode, clustInd, GET, &num_logic)) != 0)  
-    return stat;
-
-  
-
-    // se não existir nenhum cluster de dados associado ao elemento da tabela de referencias cujo indice é fornecido
-  if(inode.d[clustInd] == NULL_CLUSTER)
-  {
-    for(i = 0; i < BSLPC; i++)
-    {
-      p_directClust->info.data[i] = '\0';  //regiao de armazenamento preenchida com '\0'   
-    }
-  }
-
-  else
-  {
-    physicalNumCluster = p_sb->dZoneStart + inode.d[clustInd] * BLOCKS_PER_CLUSTER;
-    //Read a cluster of data from the buffercache
-    if( (stat = soReadCacheCluster(physicalNumCluster, &p_directClust)) != 0)
+  //Obter numero logico do cluster
+  if((stat = soHandleFileCluster(nInode, clustInd, GET, &numDC)) != 0)
       return stat;
+
+  if(numDC == NULL_CLUSTER){
+      for(i = 0; i < BSLPC; i++)
+      {
+        buff->info.data[i] = '\0';  //regiao de armazenamento preenchida com '\0'   
+      }
   }
+  else{
+    nFClust = p_sb->dZoneStart + numDC * BLOCKS_PER_CLUSTER; 
+
+    if( (stat = soReadCacheCluster(nFClust, &cluster)) != 0)
+      return stat;
 
     /*copy the information to the destination buffer*/
-  memcpy(buff, p_directClust, sizeof(SODataClust));
+    memcpy(buff, &cluster, sizeof(SODataClust));
 
-            
-  /* guardar tabela de nós I*/
-  if( (stat = soStoreBlockInT()) != 0)
-    return stat;
+    if((stat = soWriteCacheCluster(nFClust, &cluster)) != 0)
+      return stat;
+  }
 
   /*guardar super bloco*/
   if( (stat = soStoreSuperBlock()) != 0)
