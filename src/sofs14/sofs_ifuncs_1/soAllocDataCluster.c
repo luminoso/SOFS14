@@ -106,9 +106,19 @@ int soAllocDataCluster(uint32_t nInode, uint32_t *p_nClust) {
     if ((stat = soStoreBlockInT()) != 0)
         return stat;
 
+    //voltar a guardar o super bloco
+    if ((stat = soStoreSuperBlock()) != 0)
+        return stat;
+
     //se a cache estiver vazia, enche-la
     if (p_sb->dZoneRetriev.cacheIdx == DZONE_CACHE_SIZE)
         soReplenish(p_sb);
+
+    //carregar o super bloco
+    if ((stat = soLoadSuperBlock()) != 0)
+        return stat;
+
+    p_sb = soGetSuperBlock();
 
     //nclust = numero logico do cluster
     nClust = p_sb->dZoneRetriev.cache[p_sb->dZoneRetriev.cacheIdx]; // passar o numero do proximo cluster livre para nClust
