@@ -146,7 +146,7 @@ int soHandleFileCluster(uint32_t nInode, uint32_t clustInd, uint32_t op, uint32_
             return stat;
     }
 
-    printf("clucountPrincipal = %u\n", inode.cluCount);
+    //printf("clucountPrincipal = %u\n", inode.cluCount);
     if (op == CLEAN) {
         if ((stat = soWriteInode(&inode, nInode, FDIN)) != 0)
             return stat;
@@ -345,7 +345,7 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
             if ((stat = soStoreDirRefClust()) != 0)
                 return stat;
             
-            printf("clucount = %u\n", p_inode->cluCount);
+            //printf("clucount = %u\n", p_inode->cluCount);
             return 0;
         }
         case FREE:
