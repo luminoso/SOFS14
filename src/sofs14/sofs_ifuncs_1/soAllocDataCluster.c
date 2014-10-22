@@ -106,10 +106,6 @@ int soAllocDataCluster(uint32_t nInode, uint32_t *p_nClust) {
     if ((stat = soStoreBlockInT()) != 0)
         return stat;
 
-    //voltar a guardar o super bloco
-    if ((stat = soStoreSuperBlock()) != 0)
-        return stat;
-
     //se a cache estiver vazia, enche-la
     if (p_sb->dZoneRetriev.cacheIdx == DZONE_CACHE_SIZE)
         soReplenish(p_sb);
@@ -143,7 +139,7 @@ int soAllocDataCluster(uint32_t nInode, uint32_t *p_nClust) {
     // codigo deste if, vem do pdf "manipulacao do cluster de dados", slide 23
     // check if the data cluster is dirty
     if (cluster.stat != NULL_INODE) {
-        if ((stat = soCleanDataCluster(cluster.stat, *p_nClust)) != 0)
+        if ((stat = soCleanDataCluster(cluster.stat, nClust)) != 0)
             return stat;
     }
 
