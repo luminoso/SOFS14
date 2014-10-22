@@ -97,22 +97,17 @@ int soWriteInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
 		if((stat = soQCheckInodeIU(p_sb, &p_in[offset])) != 0)
 			return stat;
 
-		
-
 		//update the access time and modified time to the current time
 		p_in[offset].vD1.aTime = time(NULL);
 		p_in[offset].vD2.mTime = p_in[offset].vD1.aTime;
 	}
 
-
 	//Quick check of the inode in the dirty state consistency
 	if(status == FDIN){
 		if((stat = soQCheckFDInode(p_sb, &p_in[offset])) != 0)
 			return stat;
-
 	}
 		
-
 	//store the inode back to the inode table
 	if( (stat = soStoreBlockInT()) != 0)
     	return stat;
