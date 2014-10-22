@@ -338,9 +338,6 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
             
             if ((stat = soStoreDirRefClust()) != 0)
                 return stat;
-            
-            if ((stat = soStoreDirRefClust()) != 0)
-                return stat;
 
             if ((stat = soAttachLogicalCluster(p_sb, nInode, clustInd, p_dc->info.ref[ref_offset])) != 0)
                 return stat;
@@ -376,7 +373,7 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
             }
 
             if ((stat = soCleanLogicalCluster(p_sb, nInode, p_dc->info.ref[ref_offset])) != 0)
-                return 0;
+                return stat;
 
             p_dc->info.ref[ref_offset] = NULL_CLUSTER;
             p_inode->cluCount--;
@@ -407,7 +404,7 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
         }
     }
 
-    return 0;
+    return -EINVAL;
 }
 
 /**
