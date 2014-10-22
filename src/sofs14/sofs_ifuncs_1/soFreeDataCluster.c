@@ -138,7 +138,7 @@ int soDeplete(SOSuperBlock *p_sb) {
 
         datacluster.next = p_sb->dZoneInsert.cache[0];
 
-        if ((stat = soWriteCacheCluster(p_sb->dTail, &datacluster)) != 0)
+        if ((stat = soWriteCacheCluster(NFClt, &datacluster)) != 0)
             return stat;
     }
     
