@@ -1,7 +1,7 @@
 /**
  *  \file soAddAttDirEntry.c (implementation file)
  *
- *  \author
+ *  \author Guilherme Cardoso, 45726, gjc@ua.pt
  */
 
 #include <stdio.h>
@@ -24,7 +24,7 @@
 
 /* Allusion to external function */
 
-int soGetDirEntryByName (uint32_t nInodeDir, const char *eName, uint32_t *p_nInodeEnt, uint32_t *p_idx);
+int soGetDirEntryByName(uint32_t nInodeDir, const char *eName, uint32_t *p_nInodeEnt, uint32_t *p_idx);
 
 /** \brief operation add a generic entry to a directory */
 #define ADD         0
@@ -86,12 +86,142 @@ int soGetDirEntryByName (uint32_t nInodeDir, const char *eName, uint32_t *p_nIno
  *  \return -<em>other specific error</em> issued by \e lseek system call
  */
 
-int soAddAttDirEntry (uint32_t nInodeDir, const char *eName, uint32_t nInodeEnt, uint32_t op)
-{
-  soColorProbe (313, "07;31", "soAddAttDirEntry (%"PRIu32", \"%s\", %"PRIu32", %"PRIu32")\n", nInodeDir,
-                eName, nInodeEnt, op);
+int soAddAttDirEntry(uint32_t nInodeDir, const char *eName, uint32_t nInodeEnt, uint32_t op) {
+    soColorProbe(313, "07;31", "soAddAttDirEntry (%"PRIu32", \"%s\", %"PRIu32", %"PRIu32")\n", nInodeDir,
+            eName, nInodeEnt, op);
 
-  /* insert your code here */
-  
-  return 0;
+    SOSuperBlock *p_sb; // pointer to superblock
+    uint32_t stat; // function return status control
+    SOInode inodeDir, inodeEnt; // inodes to be filled for current directory
+
+    if ((stat = soLoadSuperBlock()) != 0)
+        return stat;
+
+    p_sb = soGetSuperBlock();
+
+    if (nInodeDir > p_sb->iTotal) return -EINVAL;
+
+    if (eName == NULL) return -EINVAL;
+
+    if (strlen(eName) > MAX_NAME) return -ENAMETOOLONG;
+
+    if (op > 2) return -EINVAL;
+
+    char *c;
+
+    c = strchr(eName, '/');
+    if (c != NULL) return -EINVAL;
+
+    if ((stat = soReadInode(&inodeDir, nInodeDir, IUIN)) != 0)
+        return stat;
+
+    if ((stat = soQCheckInodeIU(p_sb, &inodeDir)) != 0)
+        return stat;
+
+    if ((stat = soAccessGranted(nInodeDir, (W | X))) != 0)
+        return stat;
+
+    if ((stat = soReadInode(&inodeEnt, nInodeEnt, IUIN)) != 0)
+        return stat;
+
+    if ((stat = soQCheckInodeIU(p_sb, &inodeEnt)) != 0)
+        return stat;
+
+    if ((stat = soAccessGranted(nInodeEnt, (R | X))) != 0)
+        return stat;
+
+    if ((inodeDir.mode & INODE_DIR) == 0) return -ENOTDIR;
+
+    if ((op == ADD) && ((inodeEnt.mode & INODE_TYPE_MASK) == 0))
+        return -EINVAL;
+    else if ((op == ATTACH) && ((inodeEnt.mode & INODE_DIR) == 0))
+        return -ENOTDIR;
+
+    /* END OF VALIDATIONS */
+
+    uint32_t dirIdx, clusterIdx, nLClust;
+
+    if ((stat = soGetDirEntryByName(nInodeDir, eName, NULL, &dirIdx)) == 0)
+        return -EEXIST;
+    else if (stat != -ENOENT)
+        return stat;
+
+    clusterIdx = dirIdx / DPC;
+
+    if ((stat = soHandleFileCluster(nInodeDir, clusterIdx, GET, &nLClust)) != 0)
+        return 0;
+
+    SODataClust dcDir;
+
+    if (clusterIdx == NULL_CLUSTER) {
+        if ((stat = soHandleFileCluster(nInodeDir, clusterIdx, ALLOC, &nLClust)) != 0)
+            return stat;
+
+        if ((stat = soReadFileCluster(nInodeDir, clusterIdx, &dcDir)) != 0)
+            return stat;
+
+        int i;
+        for (i = 0; i < DPC; i++) memset(dcDir.info.de[i].name, '\0', MAX_NAME + 1);
+
+        inodeDir.size += sizeof (dcDir);
+    } else {
+        if ((stat = soReadFileCluster(nInodeDir, clusterIdx, &dcDir)) != 0)
+            return stat;
+    }
+
+    memcpy(dcDir.info.de[dirIdx].name, eName, strlen(eName));
+    dcDir.info.de[dirIdx].nInode = nInodeEnt;
+
+    switch (op) {
+        case ADD:
+        {
+            if ((inodeEnt.mode & INODE_DIR) == INODE_DIR) {
+
+                SODataClust dcEnt;
+
+                int i;
+
+                for (i = 0; i < DPC; i++)
+                    memset(dcEnt.info.de[i].name, '\0', MAX_NAME + 1);
+
+                dcEnt.info.de[0].name[0] = '.';
+                dcEnt.info.de[1].name[0] = '.';
+                dcEnt.info.de[1].name[1] = '.';
+
+                if ((stat = soWriteFileCluster(nInodeEnt, 0, &dcEnt)) != 0)
+                    return stat;
+
+                inodeEnt.refCount += 2;
+                inodeEnt.size += sizeof (dcEnt);
+                inodeDir.refCount += 1;
+
+                dcDir.info.de[dirIdx].nInode = nInodeEnt;
+
+            } else {
+
+                inodeDir.refCount += 1;
+            }
+            break;
+        }
+        case ATTACH:
+        {
+            inodeDir.refCount += 1;
+            inodeEnt.refCount += 1;
+
+            break;
+        }
+        default:
+            return -EINVAL;
+    }
+
+    if ((stat = soWriteFileCluster(nInodeDir, clusterIdx, &dcDir)) != 0)
+        return stat;
+
+    if ((stat = soWriteInode(&inodeDir, nInodeDir, IUIN)) != 0)
+        return stat;
+
+    if ((stat = soWriteInode(&inodeEnt, nInodeEnt, IUIN)) != 0)
+        return stat;
+
+    return 0;
 }
