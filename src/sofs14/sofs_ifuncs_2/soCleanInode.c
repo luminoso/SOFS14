@@ -61,8 +61,7 @@ int soCleanInode (uint32_t nInode)
 
     int stat;               // return var status
     SOSuperBlock *p_sb;     // pointer of type SOSuperBlock
-    SOInode *p_inode;       // pointer of type SOInode
-    uint32_t nBlk, offset;  // block number and offset of the inside block
+    SOInode inode;       // pointer of type SOInode
 
     /* any type of previous error on loading/storing the superblock data will disable the operation */
     if ((stat = soLoadSuperBlock()) != 0)
@@ -77,21 +76,8 @@ int soCleanInode (uint32_t nInode)
     if (nInode == 0 || nInode >= p_sb->iTotal)
         return -EINVAL;
 
-    /* convert the inode number, which translates to an entry of the inode table,
-     * into the logical number and the offset of the block where it is stored
-     */
-    if ((stat = soConvertRefInT(nInode,&nBlk,&offset))!=0)
-        return stat; 
-
-    /* load the contents of a specific block of the table of inodes into internal storage */
-    if ((stat = soLoadBlockInT(nBlk)) != 0)
-        return stat;
-
-    /* get a pointer to the contents of a specific block of the table of inodes */
-    p_inode = soGetBlockInT();
-
     /* teacher indication*/
-    if ((stat = soReadInode(p_inode, nInode, stat)) != 0)
+    if ((stat = soReadInode(&inode, nInode, FDIN)) != 0)
         return stat;
 
     if ((stat = soHandleFileClusters(nInode, 0, CLEAN)) != 0)

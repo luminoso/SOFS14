@@ -82,10 +82,59 @@ int soCheckDirectoryEmptiness (uint32_t nInodeDir);
 
 int soRemDetachDirEntry (uint32_t nInodeDir, const char *eName, uint32_t op)
 {
-  soColorProbe (314, "07;31", "soRemDetachDirEntry (%"PRIu32", \"%s\", %"PRIu32")\n", nInodeDir, eName, op);
+ 	soColorProbe (314, "07;31", "soRemDetachDirEntry (%"PRIu32", \"%s\", %"PRIu32")\n", nInodeDir, eName, op);
+
+ 	int stat; //variable to detect errors
+ 	SOSuperBlock *p_sb; //super block pointer
+ 	SOInode inode;
+
+ 	//Loading the super block
+ 	if((stat = soLoadSuperBlock()) != 0)
+		return stat;
+
+	p_sb = soGetSuperBlock();
+  
+	//if nInode is out of range 
+    if(nInodeDir >= p_sb->iTotal)
+        return -EINVAL;
+
+    //if the pointer to the name is null
+    if(eName == NULL)
+    	return -EINVAL;
+
+    //if the name is to big
+    if(strlen(eName) > MAX_NAME)
+    	return -ENAMETOOLONG;
+
+    //read the inode associated to the 
+    if((stat = soReadInode(&inode, nInodeDir, IUIN)) != 0)
+    	return stat;
+
+    // if the inode is not a directory
+    if((inode.mode & INODE_DIR) != INODE_DIR)
+    	return -ENOTDIR;
+
+    // if no entry with the eName is found
+    if(soGetDirEntryByName(nInodeDir, eName, NULL, NULL) != 0)
+    	return stat;
+
+    //if we dont have execute permission
+    if((stat = soAccessGranted(nInodeDir, X)) != 0)
+    	return stat;
+
+    //if we dont have write premission
+    if((stat = soAccessGranted(nInodeDir, W)) != 0)
+    	return -EPERM;
+
+    //if the directory is empty
+    if((stat = soCheckDirectoryEmptiness(nInodeDir)) != 0)
+    	return -ENOTEMPTY;
+
+    //if the directory is inconsistency
+    if((stat = soQCheckDirCont(p_sb, &inode)) != 0)
+    	return stat;
 
 
-  /* insert your code here */
 
-  return 0;
+   	return 0;
 }

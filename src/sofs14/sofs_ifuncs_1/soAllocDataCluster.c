@@ -131,10 +131,6 @@ int soAllocDataCluster(uint32_t nInode, uint32_t *p_nClust) {
     //atribuir o numero do cluster ao ponteiro fornecido nos argumentos para esse efeito
     *p_nClust = nClust;
 
-    //testar se o stat do cluster indica o inode pretendido
-    if (cluster.stat != nInode)
-        return -EWGINODENB;
-
     //voltar a guardar o cluster
     if ((stat = soWriteCacheCluster(NFClt, &cluster)) != 0)
         return stat;
