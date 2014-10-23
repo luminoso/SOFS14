@@ -115,7 +115,7 @@ int soAllocInode(uint32_t type, uint32_t* p_nInode) {
         // se não está clean, então só pode estar dirty
 
         // check if the inode is dirty
-        if ((stat = soQCheckFDInode(p_sb, &p_itable[offset])) != 0) {
+        if ((stat = soQCheckFCInode(&p_itable[offset])) != 0) {
             // codigo deste if, vem do pdf "manipulacao do cluster de dados", slide 23
             // "it is, clean it"
             if ((stat = soCleanInode(p_sb->iHead)) != 0)

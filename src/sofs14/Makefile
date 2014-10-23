@@ -2,10 +2,11 @@ CC = gcc
 CFLAGS = -g3 -gdwarf-2  -Wall -I "../debugging" -I "../rawIO14"
 IFUNCS1 = sofs_ifuncs_1/soAllocInode.o sofs_ifuncs_1/soFreeInode.o sofs_ifuncs_1/soAllocDataCluster.o \
 	  sofs_ifuncs_1/soFreeDataCluster.o
-IFUNCS2 = sofs_ifuncs_2/soReadInode.o sofs_ifuncs_2/soWriteInode.o sofs_ifuncs_2/soCleanInode.o \
-	  sofs_ifuncs_2/soAccessGranted.o 
-IFUNCS3 = sofs_ifuncs_3/soReadFileCluster.o sofs_ifuncs_3/soWriteFileCluster.o sofs_ifuncs_3/soHandleFileCluster.o \
-	  sofs_ifuncs_3/soHandleFileClusters.o
+IFUNCS2 = sofs_ifuncs_2/soWriteInode.o sofs_ifuncs_2/soCleanInode.o \
+	  sofs_ifuncs_2/soAccessGranted.o sofs_ifuncs_2/soReadInode.o 
+IFUNCS3 = sofs_ifuncs_3/soWriteFileCluster.o sofs_ifuncs_3/soHandleFileCluster.o \
+	  sofs_ifuncs_3/soHandleFileClusters.o sofs_ifuncs_3/soReadFileCluster.o
+IFUNCS4 = 
 #IFUNCS4 = sofs_ifuncs_4/soGetDirEntryByPath.o sofs_ifuncs_4/soGetDirEntryByName.o sofs_ifuncs_4/soAddAttDirEntry.o \
 #	  sofs_ifuncs_4/soRemDetachDirEntry.o sofs_ifuncs_4/soRenameDirEntry.o
 
