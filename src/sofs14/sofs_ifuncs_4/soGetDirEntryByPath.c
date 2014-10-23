@@ -1,7 +1,7 @@
 /**
  *  \file soGetDirEntryByPath.c (implementation file)
  *
- *  \author
+ *  \author Tiago Oliveira 51687
  */
 
 #include <stdio.h>
@@ -24,11 +24,11 @@
 
 /* Allusion to external function */
 
-int soGetDirEntryByName (uint32_t nInodeDir, const char *eName, uint32_t *p_nInodeEnt, uint32_t *p_idx);
+int soGetDirEntryByName(uint32_t nInodeDir, const char *eName, uint32_t *p_nInodeEnt, uint32_t *p_idx);
 
 /* Allusion to internal function */
 
-int soTraversePath (const char *ePath, uint32_t *p_nInodeDir, uint32_t *p_nInodeEnt);
+int soTraversePath(const char *ePath, uint32_t *p_nInodeDir, uint32_t *p_nInodeEnt);
 
 /** \brief Number of symbolic links in the path */
 
@@ -74,13 +74,28 @@ int soTraversePath (const char *ePath, uint32_t *p_nInodeDir, uint32_t *p_nInode
  *  \return -<em>other specific error</em> issued by \e lseek system call
  */
 
-int soGetDirEntryByPath (const char *ePath, uint32_t *p_nInodeDir, uint32_t *p_nInodeEnt)
-{
-  soColorProbe (311, "07;31", "soGetDirEntryByPath (\"%s\", %p, %p)\n", ePath, p_nInodeDir, p_nInodeDir);
+int soGetDirEntryByPath(const char *ePath, uint32_t *p_nInodeDir, uint32_t *p_nInodeEnt) {
+    soColorProbe(311, "07;31", "soGetDirEntryByPath (\"%s\", %p, %p)\n", ePath, p_nInodeDir, p_nInodeDir);
 
-  /* insert your code here */
+    int stat;
 
-  return 0;
+    // SIMPLE VALIDATIONS
+    if (ePath == NULL) // ePath cannot be NULL
+        return -EINVAL;
+
+    if (strlen(ePath) > MAX_PATH) // ePath cannot be greater than MAX_PATH error 36
+        return -ENAMETOOLONG; // TODO MAX_NAME -> component of the path 
+
+    if (ePath[0] != '/')
+        return -ERELPATH;
+    // END SIMPLE VALIDATIONS
+
+    if ((stat = soTraversePath(ePath, p_nInodeDir, p_nInodeEnt)) != 0)
+        return stat;
+
+
+
+    return 0;
 }
 
 /**
@@ -109,10 +124,60 @@ int soGetDirEntryByPath (const char *ePath, uint32_t *p_nInodeDir, uint32_t *p_n
  *  \return -<em>other specific error</em> issued by \e lseek system call
  */
 
-int soTraversePath (const char *ePath, uint32_t *p_nInodeDir, uint32_t *p_nInodeEnt)
-{
+int soTraversePath(const char *ePath, uint32_t *p_nInodeDir, uint32_t *p_nInodeEnt) {
+    char pathArr[MAX_PATH + 1];
+    char *path;
+    char nameArr[MAX_PATH + 1];
+    char *name;
+    uint32_t entry;
+    int stat;
+    char slash[] = {"/"};
+    SOInode inode;
 
-  /* insert your code here */
 
-  return 0;
+    strcpy(pathArr, ePath);
+    path = dirname(pathArr);
+    strcpy(nameArr, ePath);
+    name = basename(nameArr);
+
+    if (*name == '/')
+        *name = '.'; // semantic problem FIX
+
+    if (strlen(name) > MAX_NAME) // name component cannot be greater than 59 MAX_NAME
+        return -ENAMETOOLONG;
+
+    if ((strcmp(path, slash) == 0) && *name == '.') {
+
+        if ((stat = soGetDirEntryByName(0, name, &entry, NULL)) != 0) {     // duvida, que eu sei que barra"/" é sempre zero
+            return stat;
+        }
+        *p_nInodeDir = *p_nInodeEnt = entry;
+        return 0;
+
+    } else {
+
+        if ((stat = soReadInode(&inode, *p_nInodeEnt, IUIN)) != 0) // duvida se fica aqui
+            return stat;
+
+        if ((stat = soTraversePath(path, p_nInodeDir, p_nInodeEnt)) != 0)
+            return stat;
+
+        *p_nInodeDir = *p_nInodeEnt;
+
+        if ((stat = soAccessGranted(*p_nInodeEnt, 1)) != 0) // 1 = X execute
+            return stat;
+
+
+
+        if ((stat = soGetDirEntryByName(*p_nInodeEnt, name, &entry, NULL)) != 0) {
+            return stat;
+        }
+
+        *p_nInodeEnt = entry; // update p_nInodeEnt 
+
+        if ((stat = soReadInode(&inode, *p_nInodeEnt, IUIN)) != 0) // duvida se fica aqui 2x
+            return stat;
+
+    }
+    return 0;
 }
