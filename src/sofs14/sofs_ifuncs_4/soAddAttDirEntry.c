@@ -147,6 +147,8 @@ int soAddAttDirEntry(uint32_t nInodeDir, const char *eName, uint32_t nInodeEnt, 
         return stat;
 
     clusterIdx = dirIdx / DPC;
+    uint32_t debug_pos;
+    debug_pos = dirIdx % DPC;
 
     if ((stat = soHandleFileCluster(nInodeDir, clusterIdx, GET, &nLClust)) != 0)
         return 0;
@@ -161,23 +163,40 @@ int soAddAttDirEntry(uint32_t nInodeDir, const char *eName, uint32_t nInodeEnt, 
             return stat;
 
         int i;
-        for (i = 0; i < DPC; i++) memset(dcDir.info.de[i].name, '\0', MAX_NAME + 1);
+        for (i = 0; i < DPC; i++) {
+            memset(dcDir.info.de[i].name, '\0', MAX_NAME + 1);
+            dcDir.info.de[i].nInode = NULL_INODE;
+        }
 
-        inodeDir.size += sizeof (dcDir);
+        if (clusterIdx == 0) {
+            dcDir.info.de[0].name[0] = '.';
+            dcDir.info.de[1].name[0] = '.';
+            dcDir.info.de[1].name[1] = '.';
+            dcDir.info.de[0].nInode = dcDir.info.de[1].nInode = nInodeDir;
+        }
+
+        inodeDir.size += sizeof (dcDir.info.de);
+        
     } else {
         if ((stat = soReadFileCluster(nInodeDir, clusterIdx, &dcDir)) != 0)
             return stat;
     }
 
-    memcpy(dcDir.info.de[dirIdx].name, eName, strlen(eName));
-    dcDir.info.de[dirIdx].nInode = nInodeEnt;
+    memcpy(dcDir.info.de[dirIdx % DPC].name, eName, strlen(eName));
+    dcDir.info.de[dirIdx % DPC].nInode = nInodeEnt;
+
+    SODataClust dcEnt;
 
     switch (op) {
         case ADD:
         {
             if ((inodeEnt.mode & INODE_DIR) == INODE_DIR) {
 
-                SODataClust dcEnt;
+                if ((stat = soHandleFileCluster(nInodeEnt, 0, ALLOC, &nLClust)) != 0)
+                    return stat;
+
+                if ((stat = soReadFileCluster(nInodeEnt, 0, &dcEnt)) != 0)
+                    return stat;
 
                 int i;
 
@@ -187,26 +206,58 @@ int soAddAttDirEntry(uint32_t nInodeDir, const char *eName, uint32_t nInodeEnt, 
                 dcEnt.info.de[0].name[0] = '.';
                 dcEnt.info.de[1].name[0] = '.';
                 dcEnt.info.de[1].name[1] = '.';
+                
+                dcEnt.info.de[0].nInode = nInodeEnt;
+                dcEnt.info.de[1].nInode = nInodeDir;
 
                 if ((stat = soWriteFileCluster(nInodeEnt, 0, &dcEnt)) != 0)
                     return stat;
 
+                if ((stat = soReadInode(&inodeEnt, nInodeEnt, IUIN)) != 0)
+                    return stat;
+
                 inodeEnt.refCount += 2;
-                inodeEnt.size += sizeof (dcEnt);
+                inodeEnt.size += sizeof (dcEnt.info.de);
+
+                if ((stat = soWriteInode(&inodeEnt, nInodeEnt, IUIN)) != 0)
+                    return stat;
+
                 inodeDir.refCount += 1;
 
-                dcDir.info.de[dirIdx].nInode = nInodeEnt;
+                dcDir.info.de[dirIdx % DPC].nInode = nInodeEnt;
 
             } else {
+                if ((stat = soReadInode(&inodeEnt, nInodeEnt, IUIN)) != 0)
+                    return stat;
 
-                inodeDir.refCount += 1;
+                inodeEnt.refCount += 1;
+
+                if ((stat = soWriteInode(&inodeEnt, nInodeEnt, IUIN)) != 0)
+                    return stat;
+
+                //inodeDir.refCount += 1;
             }
             break;
         }
         case ATTACH:
         {
+            if ((stat = soReadFileCluster(nInodeEnt, 0, &dcEnt)) != 0)
+                return stat;
+
+            dcEnt.info.de[1].nInode = nInodeDir;
+
+            if ((stat = soWriteFileCluster(nInodeEnt, 0, &dcEnt)) != 0)
+                return stat;
+
+            if ((stat = soReadInode(&inodeEnt, nInodeEnt, IUIN)) != 0)
+                return stat;
+
+            inodeEnt.refCount += 2;
+
+            if ((stat = soWriteInode(&inodeEnt, nInodeEnt, IUIN)) != 0)
+                return stat;
+
             inodeDir.refCount += 1;
-            inodeEnt.refCount += 1;
 
             break;
         }
@@ -218,9 +269,6 @@ int soAddAttDirEntry(uint32_t nInodeDir, const char *eName, uint32_t nInodeEnt, 
         return stat;
 
     if ((stat = soWriteInode(&inodeDir, nInodeDir, IUIN)) != 0)
-        return stat;
-
-    if ((stat = soWriteInode(&inodeEnt, nInodeEnt, IUIN)) != 0)
         return stat;
 
     return 0;
