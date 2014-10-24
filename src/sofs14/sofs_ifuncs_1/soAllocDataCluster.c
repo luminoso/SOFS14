@@ -81,7 +81,7 @@ int soAllocDataCluster(uint32_t nInode, uint32_t *p_nClust) {
         return stat;
 
     //teste se o inode pretendido de encontra dentro dos valores possiveis e se o ponteiro nao vem com NULL_CLUSTER associado
-    if (nInode <= 0 || nInode > p_sb->iTotal - 1 || p_nClust == NULL)
+    if (nInode > p_sb->iTotal - 1 || p_nClust == NULL)
         return -EINVAL;
 
     //verificar se ha clusters livres
