@@ -83,7 +83,7 @@ int soWriteFileCluster (uint32_t nInode, uint32_t clustInd, SODataClust *buff)
       return -EINVAL;
   
   //Verificar parametros do nInode
-  if(nInode < 1 || nInode >= p_sb->iTotal)
+  if(nInode > p_sb->iTotal)
       return -EINVAL;
 	
   //Obter numero logico do cluster
