@@ -115,16 +115,10 @@ int soAddAttDirEntry(uint32_t nInodeDir, const char *eName, uint32_t nInodeEnt, 
     if ((stat = soReadInode(&inodeDir, nInodeDir, IUIN)) != 0)
         return stat;
 
-    if ((stat = soQCheckInodeIU(p_sb, &inodeDir)) != 0)
-        return stat;
-
     if ((stat = soAccessGranted(nInodeDir, (W | X))) != 0)
         return stat;
 
     if ((stat = soReadInode(&inodeEnt, nInodeEnt, IUIN)) != 0)
-        return stat;
-
-    if ((stat = soQCheckInodeIU(p_sb, &inodeEnt)) != 0)
         return stat;
 
     if ((stat = soAccessGranted(nInodeEnt, (R | X))) != 0)
@@ -147,15 +141,13 @@ int soAddAttDirEntry(uint32_t nInodeDir, const char *eName, uint32_t nInodeEnt, 
         return stat;
 
     clusterIdx = dirIdx / DPC;
-    uint32_t debug_pos;
-    debug_pos = dirIdx % DPC;
 
     if ((stat = soHandleFileCluster(nInodeDir, clusterIdx, GET, &nLClust)) != 0)
         return 0;
 
     SODataClust dcDir;
 
-    if (clusterIdx == NULL_CLUSTER) {
+    if (nLClust == NULL_CLUSTER) {
         if ((stat = soHandleFileCluster(nInodeDir, clusterIdx, ALLOC, &nLClust)) != 0)
             return stat;
 
@@ -167,16 +159,12 @@ int soAddAttDirEntry(uint32_t nInodeDir, const char *eName, uint32_t nInodeEnt, 
             memset(dcDir.info.de[i].name, '\0', MAX_NAME + 1);
             dcDir.info.de[i].nInode = NULL_INODE;
         }
-
-        if (clusterIdx == 0) {
-            dcDir.info.de[0].name[0] = '.';
-            dcDir.info.de[1].name[0] = '.';
-            dcDir.info.de[1].name[1] = '.';
-            dcDir.info.de[0].nInode = dcDir.info.de[1].nInode = nInodeDir;
-        }
+        
+        if ((stat = soReadInode(&inodeDir, nInodeDir, IUIN)) != 0)
+            return stat;
 
         inodeDir.size += sizeof (dcDir.info.de);
-        
+
     } else {
         if ((stat = soReadFileCluster(nInodeDir, clusterIdx, &dcDir)) != 0)
             return stat;
@@ -200,8 +188,10 @@ int soAddAttDirEntry(uint32_t nInodeDir, const char *eName, uint32_t nInodeEnt, 
 
                 int i;
 
-                for (i = 0; i < DPC; i++)
+                for (i = 0; i < DPC; i++){
                     memset(dcEnt.info.de[i].name, '\0', MAX_NAME + 1);
+                    dcEnt.info.de[i].nInode = NULL_INODE;
+                }
 
                 dcEnt.info.de[0].name[0] = '.';
                 dcEnt.info.de[1].name[0] = '.';
