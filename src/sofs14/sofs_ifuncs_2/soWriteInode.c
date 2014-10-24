@@ -47,75 +47,74 @@
  *  \return -<em>other specific error</em> issued by \e lseek system call
  */
 
-int soWriteInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
-{
-	soColorProbe (512, "07;31", "soWriteInode (%p, %"PRIu32", %"PRIu32")\n", p_inode, nInode, status);
-	
-	int stat; // variavel para o estado de erro
-	uint32_t nBlock, offset; //variaveis para localizar o inode pretendido
-	SOInode *p_in; // ponteiro para o inode a ser escrito
-	SOSuperBlock *p_sb; //ponteiro para o superbloco
+int soWriteInode(SOInode *p_inode, uint32_t nInode, uint32_t status) {
+    soColorProbe(512, "07;31", "soWriteInode (%p, %"PRIu32", %"PRIu32")\n", p_inode, nInode, status);
+
+    int stat; // variavel para o estado de erro
+    uint32_t nBlock, offset; //variaveis para localizar o inode pretendido
+    SOInode *p_in; // ponteiro para o inode a ser escrito
+    SOSuperBlock *p_sb; //ponteiro para o superbloco
 
 
-	//Loading the super block
- 	if((stat = soLoadSuperBlock()) != 0)
-		return stat;
+    //Loading the super block
+    if ((stat = soLoadSuperBlock()) != 0)
+        return stat;
 
-	p_sb = soGetSuperBlock();
+    p_sb = soGetSuperBlock();
 
     //Quick check on the inode Table consistency
-    if((stat = soQCheckInT(p_sb)) != 0)
-    	return stat;
+    if ((stat = soQCheckInT(p_sb)) != 0)
+        return stat;
 
     //check if pointer to the inode beeing written is not NULL
-    if(p_inode == NULL)
-    	return -EINVAL;
+    if (p_inode == NULL)
+        return -EINVAL;
 
-   	if(status != IUIN && status != FDIN)
-   		return -EINVAL;
+    if (status != IUIN && status != FDIN)
+        return -EINVAL;
 
     //check nInode is within valid parameters
-    if(!(nInode >0 && nInode < p_sb->iTotal))
-    	return -EINVAL;
+    if (!(nInode >= 0 && nInode < p_sb->iTotal))
+        return -EINVAL;
 
     //find the inode we want in the specific block and it's offset
-    if((stat = soConvertRefInT(nInode, &nBlock, &offset)) != 0)
-  		return stat;
-  	
-  	//load the inode block we want
-	if((stat = soLoadBlockInT(nBlock)) != 0)
-		return stat;
+    if ((stat = soConvertRefInT(nInode, &nBlock, &offset)) != 0)
+        return stat;
 
-	//get a pointer to the block containing the inode we want
-	p_in = soGetBlockInT();
+    //load the inode block we want
+    if ((stat = soLoadBlockInT(nBlock)) != 0)
+        return stat;
+
+    //get a pointer to the block containing the inode we want
+    p_in = soGetBlockInT();
 
     //copy the inode data to the inode we want
-	memcpy(&p_in[offset], p_inode, sizeof(SOInode));
+    memcpy(&p_in[offset], p_inode, sizeof (SOInode));
 
-	//Quick check of the inode in use consistency
-	if(status == IUIN){
-		if((stat = soQCheckInodeIU(p_sb, &p_in[offset])) != 0)
-			return stat;
+    //Quick check of the inode in use consistency
+    if (status == IUIN) {
+        if ((stat = soQCheckInodeIU(p_sb, &p_in[offset])) != 0)
+            return stat;
 
-		//update the access time and modified time to the current time
-		p_in[offset].vD1.aTime = time(NULL);
-		p_in[offset].vD2.mTime = p_in[offset].vD1.aTime;
-	}
+        //update the access time and modified time to the current time
+        p_in[offset].vD1.aTime = time(NULL);
+        p_in[offset].vD2.mTime = p_in[offset].vD1.aTime;
+    }
 
-	//Quick check of the inode in the dirty state consistency
-	if(status == FDIN){
-		if((stat = soQCheckFDInode(p_sb, &p_in[offset])) != 0)
-			return stat;
-	}
-		
-	//store the inode back to the inode table
-	if( (stat = soStoreBlockInT()) != 0)
-    	return stat;
+    //Quick check of the inode in the dirty state consistency
+    if (status == FDIN) {
+        if ((stat = soQCheckFDInode(p_sb, &p_in[offset])) != 0)
+            return stat;
+    }
+
+    //store the inode back to the inode table
+    if ((stat = soStoreBlockInT()) != 0)
+        return stat;
 
     //store the super block back
-    if((stat = soStoreSuperBlock()) != 0)
-    return stat;
+    if ((stat = soStoreSuperBlock()) != 0)
+        return stat;
 
-	return 0;
+    return 0;
 }
 
