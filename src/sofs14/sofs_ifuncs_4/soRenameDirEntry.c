@@ -1,7 +1,7 @@
 /**
  *  \file soRenameDirEntry.c (implementation file)
  *
- *  \author
+ *  \author Cátia Valente(60155)
  */
 
 #include <stdio.h>
@@ -65,7 +65,68 @@ int soRenameDirEntry (uint32_t nInodeDir, const char *oldName, const char *newNa
 {
   soColorProbe (315, "07;31", "soRenameDirEntry (%"PRIu32", \"%s\", \"%s\")\n", nInodeDir, oldName, newName);
 
-  /* insert your code here */
+  	/*descricao das variaveis*/
+	int erro;				//variavel de retorno de erros	
+	SOInode inode;				//ponteiro para o inode 
+	SOSuperBlock* p_sb;		 	//ponteiro para o superbloco 
+	SODirEntry Dir[DPC];			//array DirEntry 	  
+	uint32_t nInodeEnt, idx, idx1, idx2; 
+  
+	//verifica se o superblock foi bem carregado
+	if((erro = soLoadSuperBlock())) return erro;
+	p_sb = soGetSuperBlock();
+	
+	//verifica se o nº de inodes associado ao directorio esta fora dos limites
+	if(nInodeDir >= p_sb->iTotal || nInodeDir<0)
+		return -EINVAL;
+		
+	//verifica se o newName e valido
+	if(newName == NULL  || oldName == NULL || !strcmp(oldName, ".") || !strcmp(oldName,"..") )
+		return -EINVAL;
+	
+	//verifica se o nome nao e maior que o maximo	
+	if(strlen(newName) > MAX_NAME || strlen(oldName) > MAX_NAME)
+		return -ENAMETOOLONG;
+		
+	//le o inode associado ao directorio, tem de ser usado e pertencer ao tipo directorio
+	if((erro = soReadInode(&inode, nInodeDir, IUIN))!=0)
+		return erro;
+		
+	if((inode.mode & INODE_TYPE_MASK) != INODE_DIR)
+		return -ENOTDIR;
+
+	//verificar permiçoes
+	if((erro = soAccessGranted(nInodeDir,X)))
+		return -EACCES;
+	
+	if((erro = soAccessGranted(nInodeDir,W)))
+		return -EPERM;
+	
+	//verifica se oldName ja existe
+	if((erro = soGetDirEntryByName(nInodeDir,oldName,&nInodeEnt,&idx))) 
+		return erro;
+		
+	//indice do cluster que contem a entrada
+	idx1 = idx/DPC;
+	idx2 = idx % DPC;
+	
+	//verifica que newName nao existe
+	erro = soGetDirEntryByName(nInodeDir,newName,&nInodeEnt,&idx);
+	if(erro != -ENOENT && erro!=0)
+		return erro;
+	if(!erro)
+		return -EEXIST;	
+ SODataClust dcDir;
+	if((erro = soReadFileCluster(nInodeDir,idx1, &dcDir)))
+		return erro;
+			
+	//copia newName
+	memset(Dir[idx2].name, '\0', MAX_NAME);
+	strncpy((char *)Dir[idx2].name,newName,strlen(newName));
+	
+	if((erro = soWriteFileCluster(nInodeDir, idx1, &dcDir)))
+		return erro;
+
 
   return 0;
 }
