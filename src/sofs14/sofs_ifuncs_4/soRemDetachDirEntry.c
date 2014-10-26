@@ -1,7 +1,7 @@
 /**
  *  \file soAddAttDirEntry.c (implementation file)
  *
- *  \author
+ *  \author Bruno Silva
  */
 
 #include <stdio.h>
@@ -82,59 +82,128 @@ int soCheckDirectoryEmptiness (uint32_t nInodeDir);
 
 int soRemDetachDirEntry (uint32_t nInodeDir, const char *eName, uint32_t op)
 {
- 	soColorProbe (314, "07;31", "soRemDetachDirEntry (%"PRIu32", \"%s\", %"PRIu32")\n", nInodeDir, eName, op);
+    soColorProbe (314, "07;31", "soRemDetachDirEntry (%"PRIu32", \"%s\", %"PRIu32")\n", nInodeDir, eName, op);
+    
+    SOInode inodeEnt, inodeDir; // inode given and indode of the entry
+    SODataClust dirEnt; //Data cluster of the entry
+    uint32_t nInodeEnt, idx; //auxiliary variables
+    int stat, i; //error variable and iterable variable 
+   
+    if((stat = soReadInode(&inodeDir, nInodeDir, IUIN)) != 0)      
+        return stat;
 
- 	int stat; //variable to detect errors
- 	SOSuperBlock *p_sb; //super block pointer
- 	SOInode inode;
+    if((inodeDir.mode & INODE_DIR) != INODE_DIR)
+        return -ENOTDIR;
 
- 	//Loading the super block
- 	if((stat = soLoadSuperBlock()) != 0)
-		return stat;
+    if((stat = soAccessGranted(nInodeDir, X)) != 0)
+        return stat;
 
-	p_sb = soGetSuperBlock();
-  
-	//if nInode is out of range 
-    if(nInodeDir >= p_sb->iTotal)
+    if((stat = soAccessGranted(nInodeDir, W)) != 0)
+        return -EPERM;
+
+    if(eName == NULL)
+        return -EINVAL;
+   
+    if(strlen(eName) == 0)
         return -EINVAL;
 
-    //if the pointer to the name is null
-    if(eName == NULL)
-    	return -EINVAL;
-
-    //if the name is to big
     if(strlen(eName) > MAX_NAME)
-    	return -ENAMETOOLONG;
+        return -ENAMETOOLONG;
+   
+    if(strchr(eName, '/') != 0)  
+        return -EINVAL;
 
-    //read the inode associated to the 
-    if((stat = soReadInode(&inode, nInodeDir, IUIN)) != 0)
-    	return stat;
+    if(op > 1)
+        return -EINVAL;
+   
+    if((stat = soGetDirEntryByName(nInodeDir, eName, &nInodeEnt, &idx)) != 0)
+        return stat;
+   
+    if((stat=soReadInode(&inodeEnt, nInodeEnt, IUIN)) !=0)      
+        return stat;
 
-    // if the inode is not a directory
-    if((inode.mode & INODE_DIR) != INODE_DIR)
-    	return -ENOTDIR;
+    if(op == REM){
+        //check if it's a directory and if it's empty
+        if((inodeEnt.mode & INODE_DIR) == INODE_DIR){
+            if((stat = soCheckDirectoryEmptiness(nInodeEnt)) != 0)
+                return stat;
+            //remove reference to him self
+            inodeEnt.refCount--;
+            //remove reference ..
+            inodeDir.refCount--;
+        }     
+        
+        if((stat=soReadFileCluster(nInodeDir, (idx/DPC), &dirEnt)) != 0)
+                return stat;
 
-    // if no entry with the eName is found
-    if(soGetDirEntryByName(nInodeDir, eName, NULL, NULL) != 0)
-    	return stat;
+        //switch the last characters
+        dirEnt.info.de[idx%DPC].name[MAX_NAME] = dirEnt.info.de[idx%DPC].name[0];
+        dirEnt.info.de[idx%DPC].name[0]='\0';
 
-    //if we dont have execute permission
-    if((stat = soAccessGranted(nInodeDir, X)) != 0)
-    	return stat;
+        //remove reference from inodeDir
+        inodeEnt.refCount--;
+        
+           
+        if((stat=soWriteFileCluster(nInodeDir, (idx/DPC), &dirEnt)) != 0)
+                return stat;
+        
+        //if refcount == 0 we have to free the clusters and the inodes
+        if(inodeEnt.refCount == 0){  
+            //free all clusters of nInodeEnt
+            if((stat=soHandleFileClusters(nInodeEnt, 0, FREE)) != 0)
+                    return stat;
+           
+            if((stat=soWriteInode(&inodeEnt, nInodeEnt, IUIN)) != 0)
+                    return stat;
+            
+            //free the inode it self
+            if((stat=soFreeInode(nInodeEnt)) != 0)
+                    return stat;
+                   
+            if((stat=soWriteInode(&inodeDir, nInodeDir, IUIN)) != 0)
+                    return stat;
+        }
+        else{ // if not let's just write the inodes back
+            if((stat=soWriteInode(&inodeEnt, nInodeEnt, IUIN)) != 0)
+                    return stat;
 
-    //if we dont have write premission
-    if((stat = soAccessGranted(nInodeDir, W)) != 0)
-    	return -EPERM;
+            if((stat=soWriteInode(&inodeDir, nInodeDir, IUIN)) != 0)
+                    return stat;
+        }
+    }
+    else if(op == DETACH){
+        if((inodeEnt.mode & INODE_DIR) == INODE_DIR){
+            //remove reference to him self
+            inodeEnt.refCount--;
+            //remove reference ..
+            inodeDir.refCount--;
+        }
 
-    //if the directory is empty
-    if((stat = soCheckDirectoryEmptiness(nInodeDir)) != 0)
-    	return -ENOTEMPTY;
+        if((stat=soReadFileCluster(nInodeDir, (idx/DPC), &dirEnt)) != 0)
+                return stat;
+        
+        //remove reference from inodeDir
+        inodeEnt.refCount--;
 
-    //if the directory is inconsistency
-    if((stat = soQCheckDirCont(p_sb, &inode)) != 0)
-    	return stat;
+        //filling all the characters with the null character
+        for(i = 0; i < MAX_NAME; i++){
+            dirEnt.info.de[idx % DPC].name[i] = '\0';
+        }
+        //filling nInode field with NULL_INODE
+        dirEnt.info.de[idx % DPC].nInode = NULL_INODE;
 
+        //write cluster associated with the eName entry
+        if((stat = soWriteFileCluster(nInodeDir, (idx / DPC), &dirEnt)) != 0)
+            return stat;
 
+        if((stat=soWriteInode(&inodeEnt, nInodeEnt, IUIN)) != 0)
+                    return stat;
 
-   	return 0;
+        if((stat=soWriteInode(&inodeDir, nInodeDir, IUIN)) != 0)
+            return stat;
+    }
+   
+    
+
+    return 0;
 }
