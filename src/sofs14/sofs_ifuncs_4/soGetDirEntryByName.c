@@ -69,6 +69,8 @@ int soGetDirEntryByName (uint32_t nInodeDir, const char *eName, uint32_t *p_nIno
   SOInode inode;
   SODataClust dc;
   int i = 0;
+  char *c;
+  
   
   //Carregar e obter SUper Bloco
   if((stat = soLoadSuperBlock()) != 0)
@@ -77,7 +79,7 @@ int soGetDirEntryByName (uint32_t nInodeDir, const char *eName, uint32_t *p_nIno
   p_sb = soGetSuperBlock();
   
   //Verificar parametros do nInodeDir
-  if(nInodeDir < 0 || nInodeDir > (p_sb->iTotal - 1))
+  if(nInodeDir > p_sb->iTotal )
   	return -EINVAL;
   
   //Verificar eName
@@ -85,17 +87,12 @@ int soGetDirEntryByName (uint32_t nInodeDir, const char *eName, uint32_t *p_nIno
   	return -EINVAL;
        
   //Validação da String 
-  while(eName[i] != '\0'){
-
-    //  eName não pode conter '/' porque senão seria um caminho 
-    if(eName[i] == '/'){
-      return -EINVAL;
-    }
-    i++;
-  }
+  c = strchr(eName, '/');
+  //eName não pode conter '/' porque senão seria um caminho 
+  if(c != NULL) return -EINVAL;
   
   //Verificar comprimento do nome
-  if(i > MAX_NAME)
+  if(strlen(eName) > MAX_NAME)
     return -ENAMETOOLONG;
   
   //Ler o inode desejado
