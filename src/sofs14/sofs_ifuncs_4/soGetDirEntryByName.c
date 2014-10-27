@@ -64,13 +64,12 @@ int soGetDirEntryByName (uint32_t nInodeDir, const char *eName, uint32_t *p_nIno
   soColorProbe (312, "07;31", "soGetDirEntryByName (%"PRIu32", \"%s\", %p, %p)\n",
                 nInodeDir, eName, p_nInodeEnt, p_idx);
 
-  int stat;
-  SOSuperBlock *p_sb;
-  SOInode inode;
-  SODataClust dc;
-  int i = 0;
+  int stat; //variavel para status
+  SOSuperBlock *p_sb; //ponteiro para super bloco
+  SOInode inode; //variavel para inode
+  SODataClust dc; //variavel para data cluster
+  int i = 0; //
   char *c;
-  
   
   //Carregar e obter SUper Bloco
   if((stat = soLoadSuperBlock()) != 0)
@@ -100,7 +99,7 @@ int soGetDirEntryByName (uint32_t nInodeDir, const char *eName, uint32_t *p_nIno
     return stat;
   
   //Verificar se o inode é um directorio
-  if((inode.mode & INODE_DIR ) != INODE_DIR)
+  if((inode.mode & INODE_DIR ) == 0)
     return -ENOTDIR;
   
   //verificar se o inode tem as permisoes de execução
@@ -111,52 +110,56 @@ int soGetDirEntryByName (uint32_t nInodeDir, const char *eName, uint32_t *p_nIno
   if((stat = soQCheckDirCont(p_sb, &inode)) != 0)
     return stat;
   
-  int j;
-  int flag = -1;   
- 
-  SODirEntry clusterDir[DPC]; 
+  //FIM das Validaçoes
   
-  for(i = 0 ; i < (inode.size/(DPC*sizeof(SODirEntry))); i++){      
-      /* Função soReadFileCluster usada para ler um cluster que à partida é composto por directorios */
-      if ((stat=soReadFileCluster(nInodeDir, i, clusterDir)) != 0)    /* Read data cluster to ClsDir */
-         return stat;
+  int clusterNumberTotal = inode.size/(DPC * sizeof(SODirEntry));
+  int clusterNumber = 0;
+  int freeEntryFound = 0;
+  int tbindex = 0;
+  
+  for(clusterNumber = 0; clusterNumber < clusterNumberTotal; clusterNumber++){
+    //Ler Cluster
       
-       /* Se nome da entrada for igual ao nome recebido como parâmetro, então estamos no nó-i correcto.
-       * Retornar o valor do nó-i e o valor da próxima posição livre */
-      for(j = 0; j<DPC; j++){                                        /* Read every entry in data cluster */
-         if(strcmp(eName,(char*)(clusterDir[j].name)) == 0) {           /* If it finds an entry */
-         
-            if(p_nInodeEnt != NULL)
-               *p_nInodeEnt = (clusterDir[j].nInode); /* Point it to the requested value */
-            if(p_idx != NULL)
-               *p_idx = ((i*DPC)+j);                     /* Point it to idx if requested */
-               
-            return 0;
-         }
-         /* Encontrar a primeira posição LIVRE no estado LIMPO */
-      if ((clusterDir[j].name[0]=='\0') && (clusterDir[j].name[MAX_NAME]=='\0') && (flag == -1))
-      {
-        flag = i * DPC + j;
-      }
+    if((stat = soReadFileCluster(nInodeDir, clusterNumber, &dc)) != 0 ){
+      return stat;
     }
+
+    //Inspeccionar todas as entradas
+    for(i = 0; i<DPC; i++){
+	
+	/*  if name not found and no free entry found yet  */
+	if( (freeEntryFound == 0) && (dc.info.de[i].name[0] == '\0') && (dc.info.de[i].name[MAX_NAME] == '\0') ){
+	
+		if(p_idx != NULL)        
+			tbindex = i + (clusterNumber * DPC);
+        	
+	freeEntryFound = 1;
+		
+	}
+
+      /*  check if the name was found  */
+      else if( strcmp((const char*)dc.info.de[i].name, eName) == 0){
+	if(p_idx != NULL)        
+		*p_idx = i + (clusterNumber * DPC);
+	if(p_nInodeEnt != NULL)        
+		*p_nInodeEnt = dc.info.de[i].nInode;
+
+        /*  if name is found, all went well  */
+        return 0;
+      }
+      
+    }
+ } 
+
+  /*  no free entry was found, which means that all the directory entries were full  */
+  if(freeEntryFound == 0){
+        
+    if(p_idx != NULL)
+    	tbindex = clusterNumber * DPC;
   }
 
-  /* Se chegar aqui, significa que a entrada requerida não foi encontrada. Retornar o valor da próxima posição livre no estado LIMPO
-   * Se foi encontrada no cluster em questão alguma entrada nessas condições... */
-  if (flag != -1)
-  {
-    if (p_idx != NULL)
-      *p_idx = flag;
-  }
-  /* Senao, verificar se é possível alocar um novo cluster, e retornar a primeira posição dele */
-  else
-  {
-    if (i == MAX_FILE_CLUSTERS)
-      return -EFBIG;
-
-    if (p_idx != NULL)
-      *p_idx = i* DPC;
-  }
+  if(p_idx != NULL)
+      *p_idx = tbindex;
 
   return -ENOENT;
 }
