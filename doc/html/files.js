@@ -19,5 +19,6 @@ var files =
     [ "sofs_probe.h", "sofs__probe_8h.html", "sofs__probe_8h" ],
     [ "sofs_rawdisk.h", "sofs__rawdisk_8h.html", "sofs__rawdisk_8h" ],
     [ "sofs_superblock.h", "sofs__superblock_8h.html", "sofs__superblock_8h" ],
+    [ "sofs_syscalls.h", "sofs__syscalls_8h.html", "sofs__syscalls_8h" ],
     [ "testifuncs14.h", "testifuncs14_8h.html", null ]
 ];
