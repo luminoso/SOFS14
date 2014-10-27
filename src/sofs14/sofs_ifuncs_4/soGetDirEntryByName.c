@@ -68,8 +68,7 @@ int soGetDirEntryByName (uint32_t nInodeDir, const char *eName, uint32_t *p_nIno
   SOSuperBlock *p_sb; //ponteiro para super bloco
   SOInode inode; //variavel para inode
   SODataClust dc; //variavel para data cluster
-  int i = 0; //
-  char *c;
+  char *c; //ponteiro para verificaçao de string
   
   //Carregar e obter SUper Bloco
   if((stat = soLoadSuperBlock()) != 0)
@@ -102,7 +101,7 @@ int soGetDirEntryByName (uint32_t nInodeDir, const char *eName, uint32_t *p_nIno
   if((inode.mode & INODE_DIR ) == 0)
     return -ENOTDIR;
   
-  //verificar se o inode tem as permisoes de execução
+  //Verificar se o inode tem as permisoes de execução
   if((stat = soAccessGranted(nInodeDir, X)) != 0)
     return stat;
   
@@ -112,52 +111,48 @@ int soGetDirEntryByName (uint32_t nInodeDir, const char *eName, uint32_t *p_nIno
   
   //FIM das Validaçoes
   
-  int clusterNumberTotal = inode.size/(DPC * sizeof(SODirEntry));
-  int clusterNumber = 0;
-  int freeEntryFound = 0;
-  int tbindex = 0;
+  int clusterNumberTotal = inode.size/(DPC * sizeof(SODirEntry)); // contador do numero total de clusters
+  int clusterNumber = 0; // contador do numero de clusters
+  int freeEntryFound = 0; // contador de entradas livres
+  int tbindex = 0; // indice da tabela
+  int i= 0;
   
   for(clusterNumber = 0; clusterNumber < clusterNumberTotal; clusterNumber++){
-    //Ler Cluster
-      
-    if((stat = soReadFileCluster(nInodeDir, clusterNumber, &dc)) != 0 ){
+    //Ler Cluster 
+    if((stat = soReadFileCluster(nInodeDir, clusterNumber, &dc)) != 0 )
       return stat;
-    }
-
+   
     //Inspeccionar todas as entradas
     for(i = 0; i<DPC; i++){
 	
-	/*  if name not found and no free entry found yet  */
+	//Se o nome não for encontrado e e também não houver entradas livres  
 	if( (freeEntryFound == 0) && (dc.info.de[i].name[0] == '\0') && (dc.info.de[i].name[MAX_NAME] == '\0') ){
 	
 		if(p_idx != NULL)        
 			tbindex = i + (clusterNumber * DPC);
         	
-	freeEntryFound = 1;
-		
+	freeEntryFound = 1;	
 	}
 
-      /*  check if the name was found  */
+      //Verifica se o nome foi encontrado
       else if( strcmp((const char*)dc.info.de[i].name, eName) == 0){
 	if(p_idx != NULL)        
 		*p_idx = i + (clusterNumber * DPC);
 	if(p_nInodeEnt != NULL)        
 		*p_nInodeEnt = dc.info.de[i].nInode;
 
-        /*  if name is found, all went well  */
+        //Se o nome foi encontado, tudo ok
         return 0;
       }
       
     }
  } 
 
-  /*  no free entry was found, which means that all the directory entries were full  */
+  //Não foram encontradas entradas livres
   if(freeEntryFound == 0){
-        
     if(p_idx != NULL)
     	tbindex = clusterNumber * DPC;
   }
-
   if(p_idx != NULL)
       *p_idx = tbindex;
 
