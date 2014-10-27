@@ -93,6 +93,12 @@ int soAddAttDirEntry(uint32_t nInodeDir, const char *eName, uint32_t nInodeEnt, 
     SOSuperBlock *p_sb; // pointer to superblock
     uint32_t stat; // function return status control
     SOInode inodeDir, inodeEnt; // inodes to be filled for current directory
+    char *c; // pointer to a char, return of strchr function
+    uint32_t dirIdx, clusterIdx; // directory index position and cluster index position
+    uint32_t nLClust; // logical cluster number
+    SODataClust dcDir; // insertion directory data cluster
+    unsigned int i; // counting variable
+    SODataClust dcEnt; // entry directory data cluster
 
     if ((stat = soLoadSuperBlock()) != 0)
         return stat;
@@ -107,9 +113,8 @@ int soAddAttDirEntry(uint32_t nInodeDir, const char *eName, uint32_t nInodeEnt, 
 
     if (op > 2) return -EINVAL;
 
-    char *c;
-
     c = strchr(eName, '/');
+
     if (c != NULL) return -EINVAL;
 
     if ((stat = soReadInode(&inodeDir, nInodeDir, IUIN)) != 0)
@@ -124,8 +129,10 @@ int soAddAttDirEntry(uint32_t nInodeDir, const char *eName, uint32_t nInodeEnt, 
     if ((stat = soAccessGranted(nInodeEnt, (R | X))) != 0)
         return stat;
 
+    // check if inode dir is a directory
     if ((inodeDir.mode & INODE_DIR) == 0) return -ENOTDIR;
 
+    // if operation is add, inode entry myst be a legal type and if it attach must be a directory
     if ((op == ADD) && ((inodeEnt.mode & INODE_TYPE_MASK) == 0))
         return -EINVAL;
     else if ((op == ATTACH) && ((inodeEnt.mode & INODE_DIR) == 0))
@@ -133,20 +140,20 @@ int soAddAttDirEntry(uint32_t nInodeDir, const char *eName, uint32_t nInodeEnt, 
 
     /* END OF VALIDATIONS */
 
-    uint32_t dirIdx, clusterIdx, nLClust;
-
+    // check for next free directory position. must not match any existing eName already inserted
     if ((stat = soGetDirEntryByName(nInodeDir, eName, NULL, &dirIdx)) == 0)
         return -EEXIST;
     else if (stat != -ENOENT)
         return stat;
 
+    // calculate cluster position
     clusterIdx = dirIdx / DPC;
 
+    // get the right cluster
     if ((stat = soHandleFileCluster(nInodeDir, clusterIdx, GET, &nLClust)) != 0)
         return 0;
 
-    SODataClust dcDir;
-
+    // if retrieved cluster position is null, allocate a new one and format it accordingly 
     if (nLClust == NULL_CLUSTER) {
         if ((stat = soHandleFileCluster(nInodeDir, clusterIdx, ALLOC, &nLClust)) != 0)
             return stat;
@@ -154,12 +161,11 @@ int soAddAttDirEntry(uint32_t nInodeDir, const char *eName, uint32_t nInodeEnt, 
         if ((stat = soReadFileCluster(nInodeDir, clusterIdx, &dcDir)) != 0)
             return stat;
 
-        int i;
         for (i = 0; i < DPC; i++) {
             memset(dcDir.info.de[i].name, '\0', MAX_NAME + 1);
             dcDir.info.de[i].nInode = NULL_INODE;
         }
-        
+
         if ((stat = soReadInode(&inodeDir, nInodeDir, IUIN)) != 0)
             return stat;
 
@@ -170,14 +176,14 @@ int soAddAttDirEntry(uint32_t nInodeDir, const char *eName, uint32_t nInodeEnt, 
             return stat;
     }
 
+    // fill directory name and directory inode information
     memcpy(dcDir.info.de[dirIdx % DPC].name, eName, strlen(eName));
     dcDir.info.de[dirIdx % DPC].nInode = nInodeEnt;
-
-    SODataClust dcEnt;
 
     switch (op) {
         case ADD:
         {
+            // if we're adding a directory, allocate a cluster and format it
             if ((inodeEnt.mode & INODE_DIR) == INODE_DIR) {
 
                 if ((stat = soHandleFileCluster(nInodeEnt, 0, ALLOC, &nLClust)) != 0)
@@ -188,7 +194,7 @@ int soAddAttDirEntry(uint32_t nInodeDir, const char *eName, uint32_t nInodeEnt, 
 
                 int i;
 
-                for (i = 0; i < DPC; i++){
+                for (i = 0; i < DPC; i++) {
                     memset(dcEnt.info.de[i].name, '\0', MAX_NAME + 1);
                     dcEnt.info.de[i].nInode = NULL_INODE;
                 }
@@ -196,7 +202,7 @@ int soAddAttDirEntry(uint32_t nInodeDir, const char *eName, uint32_t nInodeEnt, 
                 dcEnt.info.de[0].name[0] = '.';
                 dcEnt.info.de[1].name[0] = '.';
                 dcEnt.info.de[1].name[1] = '.';
-                
+
                 dcEnt.info.de[0].nInode = nInodeEnt;
                 dcEnt.info.de[1].nInode = nInodeDir;
 
@@ -206,6 +212,7 @@ int soAddAttDirEntry(uint32_t nInodeDir, const char *eName, uint32_t nInodeEnt, 
                 if ((stat = soReadInode(&inodeEnt, nInodeEnt, IUIN)) != 0)
                     return stat;
 
+                // refcount is one of "." of added directory and one from the directory itself
                 inodeEnt.refCount += 2;
                 inodeEnt.size += sizeof (dcEnt.info.de);
 
@@ -220,12 +227,12 @@ int soAddAttDirEntry(uint32_t nInodeDir, const char *eName, uint32_t nInodeEnt, 
                 if ((stat = soReadInode(&inodeEnt, nInodeEnt, IUIN)) != 0)
                     return stat;
 
+                // if it is not a directory, refcount increases one value
                 inodeEnt.refCount += 1;
 
                 if ((stat = soWriteInode(&inodeEnt, nInodeEnt, IUIN)) != 0)
                     return stat;
 
-                //inodeDir.refCount += 1;
             }
             break;
         }
@@ -242,11 +249,13 @@ int soAddAttDirEntry(uint32_t nInodeDir, const char *eName, uint32_t nInodeEnt, 
             if ((stat = soReadInode(&inodeEnt, nInodeEnt, IUIN)) != 0)
                 return stat;
 
+            // attach is only for directories, therefore refcount increases by 2
             inodeEnt.refCount += 2;
 
             if ((stat = soWriteInode(&inodeEnt, nInodeEnt, IUIN)) != 0)
                 return stat;
 
+            // ".." reference of inserted directory
             inodeDir.refCount += 1;
 
             break;
