@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -D_FILE_OFFSET_BITS=64 -I "../debugging" -I "../rawIO14" -I "../sofs14"
+CFLAGS = -g3 -gdwarf-2 -Wall -D_FILE_OFFSET_BITS=64 -I "../debugging" -I "../rawIO14" -I "../sofs14"
 IFUNCS = soRead.o soReaddir.o soRename.o soTruncate.o soLink.o
 
 all:			libsyscalls14
