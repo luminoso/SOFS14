@@ -131,7 +131,7 @@ int soTraversePath(const char *ePath, uint32_t *p_nInodeDir, uint32_t *p_nInodeE
     char *name;
     uint32_t entry;
     int stat;
-    char slash[] = {"/"};
+   // char slash[] = {"/"};
     SOInode inode;
 
 
@@ -145,8 +145,8 @@ int soTraversePath(const char *ePath, uint32_t *p_nInodeDir, uint32_t *p_nInodeE
 
     if (strlen(name) > MAX_NAME) // name component cannot be greater than 59 MAX_NAME
         return -ENAMETOOLONG;
-
-    if ((strcmp(path, slash) == 0) && *name == '.') {
+   
+    if ((strcmp(path, "/") == 0) && *name == '.') {
 
         if ((stat = soGetDirEntryByName(0, name, &entry, NULL)) != 0) {     // duvida, que eu sei que barra"/" é sempre zero
             return stat;
@@ -158,6 +158,8 @@ int soTraversePath(const char *ePath, uint32_t *p_nInodeDir, uint32_t *p_nInodeE
 
         if ((stat = soReadInode(&inode, *p_nInodeEnt, IUIN)) != 0) // duvida se fica aqui
             return stat;
+        
+       
 
         if ((stat = soTraversePath(path, p_nInodeDir, p_nInodeEnt)) != 0)
             return stat;
@@ -166,8 +168,6 @@ int soTraversePath(const char *ePath, uint32_t *p_nInodeDir, uint32_t *p_nInodeE
 
         if ((stat = soAccessGranted(*p_nInodeEnt, 1)) != 0) // 1 = X execute
             return stat;
-
-
 
         if ((stat = soGetDirEntryByName(*p_nInodeEnt, name, &entry, NULL)) != 0) {
             return stat;
