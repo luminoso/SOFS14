@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <libgen.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "sofs_probe.h"
 #include "sofs_buffercache.h"
@@ -21,7 +22,9 @@
 #include "sofs_ifuncs_1.h"
 #include "sofs_ifuncs_2.h"
 #include "sofs_ifuncs_3.h"
+#include "../../syscalls14/sofs_syscalls.h"
 
+//#include "syscall.h"
 /* Allusion to external function */
 
 int soGetDirEntryByName(uint32_t nInodeDir, const char *eName, uint32_t *p_nInodeEnt, uint32_t *p_idx);
@@ -131,24 +134,26 @@ int soTraversePath(const char *ePath, uint32_t *p_nInodeDir, uint32_t *p_nInodeE
     char *name;
     uint32_t entry;
     int stat;
-   // char slash[] = {"/"};
     SOInode inode;
-
+    SODataClust dc;
+    int i;
 
     strcpy(pathArr, ePath);
     path = dirname(pathArr);
     strcpy(nameArr, ePath);
     name = basename(nameArr);
 
+    //printf("MyPath: %s\n", path);
+
     if (*name == '/')
         *name = '.'; // semantic problem FIX
 
     if (strlen(name) > MAX_NAME) // name component cannot be greater than 59 MAX_NAME
         return -ENAMETOOLONG;
-   
+
     if ((strcmp(path, "/") == 0) && *name == '.') {
 
-        if ((stat = soGetDirEntryByName(0, name, &entry, NULL)) != 0) {     // duvida, que eu sei que barra"/" é sempre zero
+        if ((stat = soGetDirEntryByName(0, name, &entry, NULL)) != 0) { // duvida, que eu sei que barra"/" é sempre zero
             return stat;
         }
         *p_nInodeDir = *p_nInodeEnt = entry;
@@ -158,8 +163,6 @@ int soTraversePath(const char *ePath, uint32_t *p_nInodeDir, uint32_t *p_nInodeE
 
         if ((stat = soReadInode(&inode, *p_nInodeEnt, IUIN)) != 0) // duvida se fica aqui
             return stat;
-        
-       
 
         if ((stat = soTraversePath(path, p_nInodeDir, p_nInodeEnt)) != 0)
             return stat;
@@ -177,6 +180,32 @@ int soTraversePath(const char *ePath, uint32_t *p_nInodeDir, uint32_t *p_nInodeE
 
         if ((stat = soReadInode(&inode, *p_nInodeEnt, IUIN)) != 0) // duvida se fica aqui 2x
             return stat;
+
+        if (inode.mode & INODE_SYMLINK) {
+            //printf("SymLink: %s\n", name);
+
+            for (i = 0; i < 7; i++) {
+                if ((stat = soReadFileCluster(*p_nInodeEnt, i, &dc)) != 0) //   i-> clusterNumber
+                    return stat;
+                if (dc.info.de[i].name[0] != '\0') {
+                    // printf("Content: %s\n", dc.info.de[i].name);
+
+                    char save[MAX_PATH + 1];
+
+                    if (dc.info.de[i].name[0] != '/') { // se nao comecar por barra, inserir barra
+                        save[0] = '/';
+                        save[1] = '\0';
+                        strcat(save, (char*) dc.info.de[i].name); // CAST because dc...name is unsigned char
+                    } else {
+                        strcpy(save, (char*) dc.info.de[i].name);
+                    }
+                    //  printf("FIX Content: %s\n", save);
+                    if ((stat = soTraversePath(save, p_nInodeDir, p_nInodeEnt)) != 0)
+                        return stat;
+
+                }
+            }
+        }
 
     }
     return 0;
