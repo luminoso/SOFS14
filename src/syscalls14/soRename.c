@@ -123,10 +123,12 @@ int soRename(const char *oldPath, const char *newPath) {
         if ((stat = soReadInode(&newPathEiNode, nInodeNew_ent, IUIN)) != 0)
             return stat;
 
-        // if rename destiny exists and it's not a directory there's no possible solution
-        if ((newPathEiNode.mode & INODE_DIR) != INODE_DIR) return -ENOTDIR;
+        if ((oldPathiNode.mode & INODE_DIR) == INODE_DIR) {
+            // if rename destiny exists and it's not a directory there's no possible solution
+            if ((newPathEiNode.mode & INODE_DIR) != INODE_DIR) return -ENOTDIR;
 
-        // FIXME: caso 2 referido no PDF
+            // FIXME: caso 2 referido no PDF
+        }
 
     } else if (stat != -ENOENT) return stat;
 
@@ -146,7 +148,6 @@ int soRename(const char *oldPath, const char *newPath) {
             if ((stat = soRemDetachDirEntry(nInodeOld_dir, oldPathStrB, DETACH)) != 0)
                 return stat;
 
-            return 0;
         } else { // it is a file or link
             if ((stat = soAddAttDirEntry(nInodeNew_ent, newPathStrB, nInodeOld_ent, ADD)) != 0)
                 return stat;
@@ -156,8 +157,6 @@ int soRename(const char *oldPath, const char *newPath) {
         }
 
     }
-
-
 
     return 0;
 }
