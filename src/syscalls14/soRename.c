@@ -1,7 +1,7 @@
 /**
  *  \file soRename.c (implementation file)
  *
- *  \author
+ *  \author Guilherme Cardoso, 45726, gjc@ua.pt
  */
 
 #include <stdio.h>
@@ -69,11 +69,95 @@
  *  \return -<em>other specific error</em> issued by \e lseek system call
  */
 
-int soRename (const char *oldPath, const char *newPath)
-{
-  soColorProbe (227, "07;31", "soRename (\"%s\", \"%s\")\n", oldPath, newPath);
+int soRename(const char *oldPath, const char *newPath) {
+    soColorProbe(227, "07;31", "soRename (\"%s\", \"%s\")\n", oldPath, newPath);
 
-  /* insert your code here */
+    int stat;
+    uint32_t nInodeOld_dir, nInodeOld_ent; // oldPath inode numbers for directory and entry
+    uint32_t nInodeNew_dir, nInodeNew_ent; // newPath inode numbers for directory and entry
+    uint32_t nnewPathEiNode; // if the newPath exists, what is the inode number for Existing entry
+    uint32_t newPathEiNodeIdx; // if the newPath exists, what is the index position for Existing entry
+    SOInode oldPathiNode, newPathEiNode; // oldPath inode and if newPath entry exits its inode
 
-  return 0;
+    // new strings to avoid compiler warnings
+    char oldPathStr[MAX_PATH + 1]; // oldPath copy
+    char newPathStr[MAX_PATH + 1]; // newPath copy
+    char oldPathStrB[MAX_NAME + 1]; // basename of oldPath copy
+    char newPathStrB[MAX_NAME + 1]; //basename of newPath copy
+
+    // avoid compiler warning "passing argument 1 of ‘__xpg_basename’ discards ‘const’ qualifier from pointer target type" for basename
+    strcpy(oldPathStr, oldPath);
+    strcpy(oldPathStrB, basename(oldPathStr));
+    strcpy(newPathStr, newPath);
+    strcpy(newPathStrB, basename(newPathStr));
+
+    if (oldPath == NULL || newPath == NULL) return -EINVAL;
+
+    if (strlen(oldPath) > MAX_PATH) return -ENAMETOOLONG;
+
+    if (strlen(newPath) > MAX_PATH) return -ENAMETOOLONG;
+
+    // END OF VALIDATIONS
+
+    /* Four operations:
+     * 1 - rename file
+     * 2 - rename folder
+     * 3 - move folder
+     * 4 - rename and move folder to new location
+     */
+
+    // Read function parameters and process them
+
+    if ((stat = soGetDirEntryByPath(oldPath, &nInodeOld_dir, &nInodeOld_ent)) != 0)
+        return stat;
+
+    if ((stat = soGetDirEntryByPath(newPath, &nInodeNew_dir, &nInodeNew_ent)) != 0)
+        return stat;
+
+    if ((stat = soReadInode(&oldPathiNode, nInodeOld_ent, IUIN)) != 0)
+        return stat;
+
+    // check if newPath is an existing entry
+    if ((stat = soGetDirEntryByName(nInodeNew_ent, newPathStrB, &nnewPathEiNode, &newPathEiNodeIdx)) == 0) {
+        // it is
+        if ((stat = soReadInode(&newPathEiNode, nInodeNew_ent, IUIN)) != 0)
+            return stat;
+
+        // if rename destiny exists and it's not a directory there's no possible solution
+        if ((newPathEiNode.mode & INODE_DIR) != INODE_DIR) return -ENOTDIR;
+
+        // FIXME: caso 2 referido no PDF
+
+    } else if (stat != -ENOENT) return stat;
+
+    // it does not exist, check if we're just renaming or moving
+    if (nInodeOld_dir == nInodeNew_dir) {
+        // just renaming
+        if ((stat = soRenameDirEntry(nInodeOld_dir, oldPathStrB, newPathStrB)) != 0)
+            return stat;
+
+    } else { //moving
+        // folders?
+        if ((oldPathiNode.mode & INODE_DIR) == INODE_DIR) {
+            if ((stat = soAddAttDirEntry(nInodeNew_ent, newPathStrB, nInodeOld_ent, ATTACH)) != 0)
+                return stat;
+
+            // if success, detach from old location. detach because directory may not be empty
+            if ((stat = soRemDetachDirEntry(nInodeOld_dir, oldPathStrB, DETACH)) != 0)
+                return stat;
+
+            return 0;
+        } else { // it is a file or link
+            if ((stat = soAddAttDirEntry(nInodeNew_ent, newPathStrB, nInodeOld_ent, ADD)) != 0)
+                return stat;
+
+            if ((stat = soRemDetachDirEntry(nInodeOld_dir, oldPathStrB, REM)) != 0)
+                return stat;
+        }
+
+    }
+
+
+
+    return 0;
 }
