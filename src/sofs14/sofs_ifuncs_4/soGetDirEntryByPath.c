@@ -22,7 +22,6 @@
 #include "sofs_ifuncs_1.h"
 #include "sofs_ifuncs_2.h"
 #include "sofs_ifuncs_3.h"
-#include "../../syscalls14/sofs_syscalls.h"
 
 //#include "syscall.h"
 /* Allusion to external function */
@@ -35,11 +34,11 @@ int soTraversePath(const char *ePath, uint32_t *p_nInodeDir, uint32_t *p_nInodeE
 
 /** \brief Number of symbolic links in the path */
 
-/* static uint32_t nSymLinks = 0; */
+static uint32_t nSymLinks = 0;
 
 /** \brief Old directory inode number */
 
-/* static uint32_t oldNInodeDir = 0; */
+static uint32_t oldNInodeDir = 0;
 
 /**
  *  \brief Get an entry by path.
@@ -128,6 +127,7 @@ int soGetDirEntryByPath(const char *ePath, uint32_t *p_nInodeDir, uint32_t *p_nI
  */
 
 int soTraversePath(const char *ePath, uint32_t *p_nInodeDir, uint32_t *p_nInodeEnt) {
+
     char pathArr[MAX_PATH + 1];
     char *path;
     char nameArr[MAX_PATH + 1];
@@ -136,12 +136,25 @@ int soTraversePath(const char *ePath, uint32_t *p_nInodeDir, uint32_t *p_nInodeE
     int stat;
     SOInode inode;
     SODataClust dc;
-    int i;
 
     strcpy(pathArr, ePath);
     path = dirname(pathArr);
     strcpy(nameArr, ePath);
     name = basename(nameArr);
+
+    //printf("1 dirname: %s\n", path);
+    //printf("1 basename: %s\n", name);
+
+    if (strcmp(path, ".") == 0) { //condicao de paragem para uns testes
+        if (nSymLinks) {
+            *p_nInodeEnt = oldNInodeDir;
+            nSymLinks--;
+            if ((stat = soGetDirEntryByName(*p_nInodeEnt, name, p_nInodeEnt, NULL)) != 0) {
+                return stat;
+            }
+        }
+        return 0;
+    }
 
     //printf("MyPath: %s\n", path);
 
@@ -161,8 +174,8 @@ int soTraversePath(const char *ePath, uint32_t *p_nInodeDir, uint32_t *p_nInodeE
 
     } else {
 
-        if ((stat = soReadInode(&inode, *p_nInodeEnt, IUIN)) != 0) // duvida se fica aqui
-            return stat;
+        //  if ((stat = soReadInode(&inode, *p_nInodeEnt, IUIN)) != 0) // nao pode ficar aqui
+        //      return stat;
 
         if ((stat = soTraversePath(path, p_nInodeDir, p_nInodeEnt)) != 0)
             return stat;
@@ -182,31 +195,52 @@ int soTraversePath(const char *ePath, uint32_t *p_nInodeDir, uint32_t *p_nInodeE
             return stat;
 
         if (inode.mode & INODE_SYMLINK) {
+
+
             //printf("SymLink: %s\n", name);
+            char save[MAX_PATH + 1];
+            if ((stat = soReadFileCluster(*p_nInodeEnt, 0, &dc)) != 0) //  0 -> clusterNumber,symlinks fits in clust 0
+                return stat;
 
-            for (i = 0; i < 7; i++) {
-                if ((stat = soReadFileCluster(*p_nInodeEnt, i, &dc)) != 0) //   i-> clusterNumber
+            if (dc.info.de[0].name[0] != '/') { // se nao comecar por barra, nao e caminho absoluto
+
+  //              printf("Not an absolut path\n");
+                //  save[0] = '/';
+                // save[1] = '\0';
+                //strcat(save, (char*) dc.info.de[0].name);
+                strcpy(save, (char*) dc.info.de[0].name);
+
+                nSymLinks++;
+                oldNInodeDir = *p_nInodeDir;
+                if ((stat = soTraversePath(save, p_nInodeDir, p_nInodeEnt)) != 0)
                     return stat;
-                if (dc.info.de[i].name[0] != '\0') {
-                    // printf("Content: %s\n", dc.info.de[i].name);
 
-                    char save[MAX_PATH + 1];
 
-                    if (dc.info.de[i].name[0] != '/') { // se nao comecar por barra, inserir barra
-                        save[0] = '/';
-                        save[1] = '\0';
-                        strcat(save, (char*) dc.info.de[i].name); // CAST because dc...name is unsigned char
-                    } else {
-                        strcpy(save, (char*) dc.info.de[i].name);
-                    }
-                    //  printf("FIX Content: %s\n", save);
-                    if ((stat = soTraversePath(save, p_nInodeDir, p_nInodeEnt)) != 0)
-                        return stat;
+            } else {
+//                printf("Absolut path\n");
+                strcpy(save, (char*) dc.info.de[0].name);
+                if ((stat = soTraversePath(save, p_nInodeDir, p_nInodeEnt)) != 0)
+                    return stat;
 
-                }
             }
+
+    //        printf("Content: %s\n", save);
+
+            /*char pathArr2[MAX_PATH + 1];
+            char *path2;
+            char nameArr2[MAX_PATH + 1];
+            char *name2;
+            strcpy(pathArr2, save);
+            path2 = dirname(pathArr2);
+            strcpy(nameArr, save);
+            name2 = basename(nameArr2);*/
+
+
+            //printf("FIX Content: %s\n", save);
+
         }
 
     }
+
     return 0;
 }
