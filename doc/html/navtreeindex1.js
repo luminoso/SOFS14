@@ -1,5 +1,7 @@
 var NAVTREEINDEX1 =
 {
+"structso_buffer_cache_node.html#a919d2398debbebbd5373f2b963f1f08c":[0,0,4,0],
+"structso_buffer_cache_node.html#ae8fc4ccca56c791f63297b26b37838e4":[0,0,4,5],
 "structso_data_clust.html":[0,0,5],
 "structso_data_clust.html#a0789ad0f9d46afe85f9faa812e1d2bf5":[0,0,5,0],
 "structso_data_clust.html#a809f3eeef644cf28f84ba335cd23e564":[0,0,5,3],
@@ -40,8 +42,8 @@ var NAVTREEINDEX1 =
 "structso_super_block.html#ade73ce098469306a2b8392a756f27484":[0,0,8,8],
 "structso_super_block.html#aeb2fb83d56eb55c20b0fc7ce42d38148":[0,0,8,7],
 "structso_super_block.html#afe72942b2f079eed4a8fd8d7e71631d0":[0,0,8,9],
-"testifuncs14_8h.html":[1,0,20],
-"testifuncs14_8h_source.html":[1,0,20],
+"testifuncs14_8h.html":[1,0,21],
+"testifuncs14_8h_source.html":[1,0,21],
 "unioninfo_content.html":[0,0,1],
 "unioninfo_content.html#a07768e11bb86daa5e3dea987e1a97c66":[0,0,1,2],
 "unioninfo_content.html#a651a031e2b95effb69c4d35b0344e577":[0,0,1,0],
