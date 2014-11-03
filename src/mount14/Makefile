@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -D_FILE_OFFSET_BITS=64 -DFUSE_USE_VERSION=26 -I "../debugging" -I "../rawIO14" -I "../sofs14" -I "../syscalls14"
+CFLAGS = -g3 -gdwarf-2  -Wall -D_FILE_OFFSET_BITS=64 -DFUSE_USE_VERSION=26 -I "../debugging" -I "../rawIO14" -I "../sofs14" -I "../syscalls14"
 LFLAGS = -L "../../lib" -L/lib
 
 all32:			mount_sofs14_32
