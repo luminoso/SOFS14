@@ -85,6 +85,9 @@ int soGetDirEntryByPath(const char *ePath, uint32_t *p_nInodeDir, uint32_t *p_nI
     if (ePath == NULL) // ePath cannot be NULL
         return -EINVAL;
 
+    if ((p_nInodeDir == NULL) || (p_nInodeEnt == NULL)) // ePath cannot be NULL
+        return -EINVAL;
+
     if (strlen(ePath) > MAX_PATH) // ePath cannot be greater than MAX_PATH error 36
         return -ENAMETOOLONG; // TODO MAX_NAME -> component of the path 
 
