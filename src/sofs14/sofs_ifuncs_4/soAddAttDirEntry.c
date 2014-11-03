@@ -120,13 +120,13 @@ int soAddAttDirEntry(uint32_t nInodeDir, const char *eName, uint32_t nInodeEnt, 
     if ((stat = soReadInode(&inodeDir, nInodeDir, IUIN)) != 0)
         return stat;
 
-    if ((stat = soAccessGranted(nInodeDir, (W))) != 0)
+    if ((stat = soAccessGranted(nInodeDir, (X))) != 0)
         return stat;
 
     if ((stat = soReadInode(&inodeEnt, nInodeEnt, IUIN)) != 0)
         return stat;
 
-    if ((stat = soAccessGranted(nInodeEnt, (R))) != 0)
+    if ((stat = soAccessGranted(nInodeEnt, (W))) != 0)
         return stat;
 
     // check if inode dir is a directory
