@@ -80,6 +80,8 @@ int soGetDirEntryByPath(const char *ePath, uint32_t *p_nInodeDir, uint32_t *p_nI
     soColorProbe(311, "07;31", "soGetDirEntryByPath (\"%s\", %p, %p)\n", ePath, p_nInodeDir, p_nInodeDir);
 
     int stat;
+    uint32_t dir;
+    uint32_t ent;
 
     // SIMPLE VALIDATIONS
     if (ePath == NULL) // ePath cannot be NULL
@@ -91,6 +93,11 @@ int soGetDirEntryByPath(const char *ePath, uint32_t *p_nInodeDir, uint32_t *p_nI
     if (ePath[0] != '/')
         return -ERELPATH;
     // END SIMPLE VALIDATIONS
+
+    if (p_nInodeDir == NULL)
+        p_nInodeDir = &dir;
+    if (p_nInodeEnt == NULL)
+        p_nInodeEnt = &ent;
 
     if ((stat = soTraversePath(ePath, p_nInodeDir, p_nInodeEnt)) != 0)
         return stat;
@@ -156,10 +163,9 @@ int soTraversePath(const char *ePath, uint32_t *p_nInodeDir, uint32_t *p_nInodeE
 
     //printf("MyPath: %s\n", path);
 
-    if (strcmp(name, "/") == 0) {
-        name[0] = '.'; // semantic problem FIX
-        name[1] = '\0';
-    }
+    if (strcmp(name, "/") == 0)
+        *name = '.'; // semantic problem FIX
+
 
     if (strlen(name) > MAX_NAME) // name component cannot be greater than 59 MAX_NAME
         return -ENAMETOOLONG;
