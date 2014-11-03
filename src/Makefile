@@ -6,7 +6,7 @@ all32:
 			make -C showBlock14 all32
 			make -C mkfs14 all32
 			make -C testifuncs14 all32
-#			make -C mount14 all32
+			make -C mount14 all32
 
 all64:
 			make -C debugging all
@@ -16,7 +16,7 @@ all64:
 			make -C showBlock14 all64
 			make -C mkfs14 all64
 			make -C testifuncs14 all64
-#			make -C mount14 all64
+			make -C mount14 all64
 
 clean:
 			make -C debugging clean
@@ -26,4 +26,4 @@ clean:
 			make -C showBlock14 clean
 			make -C mkfs14 clean
 			make -C testifuncs14 clean
-#			make -C mount14 clean
+			make -C mount14 clean

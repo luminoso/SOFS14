@@ -1,6 +1,7 @@
 var files =
 [
     [ "mkfs_sofs14.h", "mkfs__sofs14_8h.html", null ],
+    [ "mount_sofs14.h", "mount__sofs14_8h.html", null ],
     [ "showblock_sofs14.h", "showblock__sofs14_8h.html", null ],
     [ "sofs_basicconsist.h", "sofs__basicconsist_8h.html", "sofs__basicconsist_8h" ],
     [ "sofs_basicoper.h", "sofs__basicoper_8h.html", "sofs__basicoper_8h" ],
