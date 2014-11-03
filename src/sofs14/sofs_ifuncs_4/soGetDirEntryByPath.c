@@ -95,8 +95,6 @@ int soGetDirEntryByPath(const char *ePath, uint32_t *p_nInodeDir, uint32_t *p_nI
     if ((stat = soTraversePath(ePath, p_nInodeDir, p_nInodeEnt)) != 0)
         return stat;
 
-
-
     return 0;
 }
 
@@ -145,7 +143,7 @@ int soTraversePath(const char *ePath, uint32_t *p_nInodeDir, uint32_t *p_nInodeE
     //printf("1 dirname: %s\n", path);
     //printf("1 basename: %s\n", name);
 
-    if (strcmp(path, ".") == 0) { //condicao de paragem para uns testes
+    if (strcmp(path, ".") == 0) { //condicao de paragem para atalhos
         if (nSymLinks) {
             *p_nInodeEnt = oldNInodeDir;
             nSymLinks--;
@@ -158,13 +156,15 @@ int soTraversePath(const char *ePath, uint32_t *p_nInodeDir, uint32_t *p_nInodeE
 
     //printf("MyPath: %s\n", path);
 
-    if (*name == '/')
-        *name = '.'; // semantic problem FIX
+    if (strcmp(name, "/") == 0) {
+        name[0] = '.'; // semantic problem FIX
+        name[1] = '\0';
+    }
 
     if (strlen(name) > MAX_NAME) // name component cannot be greater than 59 MAX_NAME
         return -ENAMETOOLONG;
 
-    if ((strcmp(path, "/") == 0) && *name == '.') {
+    if ((strcmp(path, "/") == 0) && (strcmp(name, ".") == 0)) {
 
         if ((stat = soGetDirEntryByName(0, name, &entry, NULL)) != 0) { // duvida, que eu sei que barra"/" é sempre zero
             return stat;
@@ -204,10 +204,7 @@ int soTraversePath(const char *ePath, uint32_t *p_nInodeDir, uint32_t *p_nInodeE
 
             if (dc.info.de[0].name[0] != '/') { // se nao comecar por barra, nao e caminho absoluto
 
-  //              printf("Not an absolut path\n");
-                //  save[0] = '/';
-                // save[1] = '\0';
-                //strcat(save, (char*) dc.info.de[0].name);
+                //              printf("Not an absolut path\n");
                 strcpy(save, (char*) dc.info.de[0].name);
 
                 nSymLinks++;
@@ -217,26 +214,12 @@ int soTraversePath(const char *ePath, uint32_t *p_nInodeDir, uint32_t *p_nInodeE
 
 
             } else {
-//                printf("Absolut path\n");
+                //                printf("Absolut path\n");
                 strcpy(save, (char*) dc.info.de[0].name);
                 if ((stat = soTraversePath(save, p_nInodeDir, p_nInodeEnt)) != 0)
                     return stat;
 
             }
-
-    //        printf("Content: %s\n", save);
-
-            /*char pathArr2[MAX_PATH + 1];
-            char *path2;
-            char nameArr2[MAX_PATH + 1];
-            char *name2;
-            strcpy(pathArr2, save);
-            path2 = dirname(pathArr2);
-            strcpy(nameArr, save);
-            name2 = basename(nameArr2);*/
-
-
-            //printf("FIX Content: %s\n", save);
 
         }
 
