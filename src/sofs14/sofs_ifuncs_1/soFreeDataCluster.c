@@ -54,6 +54,7 @@ int soFreeDataCluster(uint32_t nClust) {
     SOSuperBlock *p_sb;         // super block pointer
     uint32_t NFClt;             // data cluster physical position
     SODataClust datacluster;
+    uint32_t cluster_stat;
 
     // load super block
     if ((stat = soLoadSuperBlock()) != 0)
@@ -64,6 +65,12 @@ int soFreeDataCluster(uint32_t nClust) {
     
     // check if the data cluster number is in the right range
     if (nClust > p_sb->dZoneTotal || nClust == 0 ) return -EINVAL;
+    
+    // check if the data cluster is allocated
+    if ((stat = soQCheckStatDC(p_sb, nClust, &cluster_stat)) != 0)
+        return stat;
+    
+    if(cluster_stat != ALLOC_CLT) return -EDCNALINVAL;
 
     // calculate data cluster physical position
     NFClt = p_sb->dZoneStart + nClust * BLOCKS_PER_CLUSTER;
