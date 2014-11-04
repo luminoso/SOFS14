@@ -70,7 +70,7 @@ int soFreeDataCluster(uint32_t nClust) {
     if ((stat = soQCheckStatDC(p_sb, nClust, &cluster_stat)) != 0)
         return stat;
     
-    if(cluster_stat != ALLOC_CLT) return -EDCNALINVAL;
+    if(cluster_stat == FREE_CLT) return -EDCNALINVAL;
 
     // calculate data cluster physical position
     NFClt = p_sb->dZoneStart + nClust * BLOCKS_PER_CLUSTER;
@@ -87,6 +87,10 @@ int soFreeDataCluster(uint32_t nClust) {
     // data cluster isn't in a double linked list anymore
     datacluster.prev = datacluster.next = NULL_CLUSTER;
 
+    // write data cluster new information
+    if ((stat = soWriteCacheCluster(NFClt, &datacluster)) != 0)
+        return stat;
+
     // check if the insert cache is full. if it is, deplete it
     if (p_sb->dZoneInsert.cacheIdx == DZONE_CACHE_SIZE)
         soDeplete(p_sb);
@@ -102,10 +106,6 @@ int soFreeDataCluster(uint32_t nClust) {
     p_sb->dZoneInsert.cache[p_sb->dZoneInsert.cacheIdx] = nClust;
     p_sb->dZoneInsert.cacheIdx += 1;
     p_sb->dZoneFree += 1;
-
-    // write data cluster new information
-    if ((stat = soWriteCacheCluster(NFClt, &datacluster)) != 0)
-        return stat;
     
     // save super block new information
     if ((stat = soStoreSuperBlock()) != 0)
@@ -138,7 +138,7 @@ int soDeplete(SOSuperBlock *p_sb) {
     
     if (p_sb->dTail != NULL_CLUSTER) {
 
-        NFClt = p_sb->dZoneStart + p_sb->dTail*BLOCKS_PER_CLUSTER;
+        NFClt = p_sb->dZoneStart + p_sb->dTail * BLOCKS_PER_CLUSTER;
 
         if ((stat = soReadCacheCluster(NFClt, &datacluster)) != 0)
             return stat;
