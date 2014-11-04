@@ -64,9 +64,11 @@ int soAllocDataCluster(uint32_t nInode, uint32_t *p_nClust) {
     soColorProbe(613, "07;33", "soAllocDataCluster (%"PRIu32", %p)\n", nInode, p_nClust);
 
     int stat; // variavel para o estado de erro
-    uint32_t nClust, clusterStat, NFClt; //variaveis para localizar o cluster, contem variavel extra usada no teste de consistencia do header do cluster
+    //uint32_t nClust, clusterStat, NFClt; //variaveis para localizar o cluster, contem variavel extra usada no teste de consistencia do header do cluster
     SOSuperBlock *p_sb; //ponteiro para o superbloco
     SODataClust cluster; //ponteiro para o cluster que vai ser reservado
+    SOInode *p_inode;
+    uint32_t nBlock, offset, nClust, clusterStat, NFClt;
 
     //carregar o super bloco
     if ((stat = soLoadSuperBlock()) != 0)
@@ -78,6 +80,23 @@ int soAllocDataCluster(uint32_t nInode, uint32_t *p_nClust) {
         return stat;
 
     if ((stat = soQCheckDZ(p_sb)) != 0)
+        return stat;
+
+    //carregar inode pretendido
+    if ((stat = soConvertRefInT(nInode, &nBlock, &offset)) != 0)
+        return stat;
+
+    if ((stat = soLoadBlockInT(nBlock)) != 0)
+        return stat;
+
+    p_inode = soGetBlockInT();
+
+    //teste de consistencia ao inode
+    if ((stat = soQCheckInodeIU(p_sb, &p_inode[offset])) != 0)
+        return stat;
+
+    //guardar o inode so precisavamos de testar a consistencia
+    if ((stat = soStoreBlockInT()) != 0)
         return stat;
 
     //teste se o inode pretendido de encontra dentro dos valores possiveis e se o ponteiro nao vem com NULL_CLUSTER associado
