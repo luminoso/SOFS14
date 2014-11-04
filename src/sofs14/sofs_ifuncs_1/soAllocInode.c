@@ -99,6 +99,8 @@ int soAllocInode(uint32_t type, uint32_t* p_nInode) {
 
     // se lido correctamente vamos obter o ponteiro para ele
     p_itable = soGetBlockInT();
+    
+    *p_nInode = p_sb->iHead; /* 1º elemento*/
 
     if ((stat = soQCheckFCInode(&p_itable[offset])) != 0) { // significa que o inode nao está clean. é preciso "limpar"
         // se não está clean, então só pode estar dirty
@@ -136,11 +138,6 @@ int soAllocInode(uint32_t type, uint32_t* p_nInode) {
     }
 
     p_itable[offset].i1 = p_itable[offset].i2 = NULL_CLUSTER; // refrencias indirects
-
-
-
-    *p_nInode = p_sb->iHead; /* 1º elemento*/
-
 
     // se tiver apenas 1 elemento
     if (p_sb->iFree == 1) 
