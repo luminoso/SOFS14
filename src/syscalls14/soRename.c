@@ -76,10 +76,8 @@ int soRename(const char *oldPath, const char *newPath) {
     int stat;
     uint32_t nInodeOld_dir, nInodeOld_ent; // oldPath inode numbers for directory and entry
     uint32_t nInodeNew_dir, nInodeNew_ent; // newPath inode numbers for directory and entry
-    uint32_t nnewPathEinode; // if the newPath exists, what is the inode number for Existing entry
-    uint32_t newPathEinodeIdx; // if the newPath exists, what is the index position for Existing entry
-    SOInode oldPathinode, newPathEinode; // oldPath inode and if newPath entry exits its inode
-    
+    SOInode oldPathinode, newPathinode, newPathEinode; // oldPath inode and if newPath entry exits its inode
+
     // new strings to avoid compiler warnings
     char oldPathStr[MAX_PATH + 1]; // oldPath copy
     char newPathStr[MAX_PATH + 1]; // newPath copy
@@ -102,6 +100,9 @@ int soRename(const char *oldPath, const char *newPath) {
     strcpy(newPathStr, newPath);
     strcpy(newPathStrB, basename(newPathStr));
 
+    char newPathStrD[MAX_PATH + 1];
+    strcpy(newPathStrD, dirname(newPathStr));
+
     // END OF VALIDATIONS
 
     /* Four operations:
@@ -116,61 +117,95 @@ int soRename(const char *oldPath, const char *newPath) {
     if ((stat = soGetDirEntryByPath(oldPath, &nInodeOld_dir, &nInodeOld_ent)) != 0)
         return stat;
 
-    if ((stat = soGetDirEntryByPath(newPath, &nInodeNew_dir, &nInodeNew_ent)) != 0)
-        return stat;
-
     if ((stat = soReadInode(&oldPathinode, nInodeOld_ent, IUIN)) != 0)
         return stat;
 
-    // check if newPath is an existing entry
-    if ((stat = soGetDirEntryByName(nInodeNew_ent, newPathStrB, &nnewPathEinode, &newPathEinodeIdx)) == 0) {
-        // it is
-        if ((stat = soReadInode(&newPathEinode, nInodeNew_ent, IUIN)) != 0)
-            return stat;
+    if ((stat = soGetDirEntryByPath(newPath, &nInodeNew_dir, &nInodeNew_ent)) != 0) {
+        if (stat == -ENOENT) {
+            // NAO EXISTE
 
-        if ((oldPathinode.mode & INODE_DIR) == INODE_DIR) {
-            // if rename destiny exists and it's not a directory there's no possible solution
-            if ((newPathEinode.mode & INODE_DIR) != INODE_DIR) return -ENOTDIR;
-
-            //if (strcmp(oldPathStr, strncpy(newPathStr2, newPathStr, strlen(newPathStr) - strlen(basename(newPathStrB)))) == 0) return -EINVAL;
-            if (strstr(newPath, oldPath) != NULL) return -EINVAL; // can't move an directory to it self sub directory
-
-            if ((stat = soCheckDirectoryEmptiness(nInodeNew_ent)) != 0)
+            // entao tenho que ler o directorio base para saber o inode -- tem que existir!
+            if ((stat = soGetDirEntryByPath(newPathStrD, &nInodeNew_dir, &nInodeNew_ent)) != 0)
                 return stat;
+
+            if ((stat = soReadInode(&newPathinode, nInodeNew_ent, IUIN)) != 0)
+                return stat;
+
+            // DIRECTORIOS IGUAIS E NAO EXISTE. É UM RENAME APENAS
+            if (nInodeOld_dir == nInodeNew_ent) {
+                // operation 1: renaming
+                if ((stat = soRenameDirEntry(nInodeOld_dir, oldPathStrB, newPathStrB)) != 0)
+                    return stat;
+
+                return 0;
+            } else {
+                // DESTINO NAO EXISTE E SAO DIRECTORIOS DIFERENTES
+                // É UM MOVE
+
+                // nao é subdirectorio de si mesmo
+                // if (strcmp(oldPathStr, strncpy(newPathStr2, newPathStr, strlen(newPathStr) - strlen(basename(newPathStrB)))) == 0) return -EINVAL;
+                // if (strstr(newPath, oldPath) != NULL) return -EINVAL; // can't move an directory to it self sub directory
+                // if (strlen(strstr(newPathStr,oldPathStr)) > 0) return -EINVAL;
+                
+                // char *c;
+                // c = strstr(oldPathStr,dirname(newPathStr));
+                // if(c != NULL) if(strlen(c) == 0) return -EINVAL;
+
+                if ((oldPathinode.mode & INODE_DIR) == INODE_DIR) {
+                    // MOVE DE UM DIRECTORIO COM OU SEM RENAME 
+                    if ((stat = soAddAttDirEntry(nInodeNew_ent, newPathStrB, nInodeOld_ent, ATTACH)) != 0)
+                        return stat;
+
+                    if ((stat = soRemDetachDirEntry(nInodeOld_dir, oldPathStrB, DETACH)) != 0)
+                        return stat;
+                    
+                    return 0;
+                } else {
+                    // SE NAO É DIRECTORIO É FICHEIRO OU SYMLINK
+                    if ((stat = soAddAttDirEntry(nInodeNew_ent, newPathStrB, nInodeOld_ent, ADD)) != 0)
+                        return stat;
+
+                    if ((stat = soRemDetachDirEntry(nInodeOld_dir, oldPathStrB, REM)) != 0)
+                        return stat;
+                    
+                    return 0;
+                }
+
+            }
         }
-        
-        if ((stat = soRenameDirEntry(nInodeOld_dir,oldPathStrB,newPathStrB)) != 0)
-            return stat;
-        
-        if ((stat = soRemDetachDirEntry(nInodeNew_ent, newPathStrB, REM)) != 0)
-                return stat;
+    } else if (stat != 0) return stat;
 
-    } else if (stat != -ENOENT) return stat;
+    if ((stat = soReadInode(&newPathEinode, nInodeNew_ent, IUIN)) != 0)
+        return stat;
 
-    // it does not exist, check if we're just renaming or moving
-    if (nInodeOld_dir == nInodeNew_dir) {
-        // operation 1: renaming
-        if ((stat = soRenameDirEntry(nInodeOld_dir, oldPathStrB, newPathStrB)) != 0)
+    if ((newPathEinode.mode & INODE_DIR) == INODE_DIR) {
+
+        // tem que estar vazio
+        if ((stat = soCheckDirectoryEmptiness(nInodeNew_ent)) != 0)
             return stat;
 
-    } else { // operation 3 or 4
-        // operation 4: move and remove directory entry
-        if ((oldPathinode.mode & INODE_DIR) == INODE_DIR) {
-            if ((stat = soAddAttDirEntry(nInodeNew_ent, newPathStrB, nInodeOld_ent, ATTACH)) != 0)
-                return stat;
+        // metemos o novo
+        if ((stat = soAddAttDirEntry(nInodeNew_dir, newPathStrB, nInodeOld_ent, ATTACH)) != 0)
+            return stat;
+        
+        // removemos o directorio antigo
+        if ((stat = soRemDetachDirEntry(nInodeNew_dir, newPathStrB, DETACH)) != 0)
+            return stat;
+        
+        return 0;
+        
+    } else {
+        // mover por cima ficheiro ou symlink
+        if ((stat = soRemDetachDirEntry(nInodeNew_dir, newPathStrB, REM)) != 0)
+            return stat;
 
-            // if success, detach from old location. detach because directory may not be empty
-            if ((stat = soRemDetachDirEntry(nInodeOld_dir, oldPathStrB, DETACH)) != 0)
-                return stat;
+        if ((stat = soAddAttDirEntry(nInodeNew_dir, newPathStrB, nInodeOld_ent, ADD)) != 0)
+            return stat;
 
-        } else { // operation 3: move
-            if ((stat = soAddAttDirEntry(nInodeNew_ent, newPathStrB, nInodeOld_ent, ADD)) != 0)
-                return stat;
-
-            if ((stat = soRemDetachDirEntry(nInodeOld_dir, oldPathStrB, REM)) != 0)
-                return stat;
-        }
-
+        if ((stat = soRemDetachDirEntry(nInodeOld_dir, oldPathStrB, REM)) != 0)
+            return stat;
+        
+        return 0;
     }
 
     return 0;
