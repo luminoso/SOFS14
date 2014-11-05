@@ -73,7 +73,7 @@
 int soRename(const char *oldPath, const char *newPath) {
     soColorProbe(227, "07;31", "soRename (\"%s\", \"%s\")\n", oldPath, newPath);
 
-    int stat;
+    int stat; // function status return control
     uint32_t nInodeOld_dir, nInodeOld_ent; // oldPath inode numbers for directory and entry
     uint32_t nInodeNew_dir, nInodeNew_ent; // newPath inode numbers for directory and entry
     SOInode oldPathinode, newPathinode, newPathEinode; // oldPath inode and if newPath entry exits its inode
@@ -83,7 +83,7 @@ int soRename(const char *oldPath, const char *newPath) {
     char newPathStr[MAX_PATH + 1]; // newPath copy
     char oldPathStrB[MAX_NAME + 1]; // basename of oldPath copy
     char newPathStrB[MAX_NAME + 1]; // basename of newPath copy
-    //char newPathStr2[MAX_PATH + 1]; // str to compare if oldpath is a substring of newpath
+    char newPathStrD[MAX_PATH + 1]; // dirname of newPath
 
     if (oldPath == NULL || newPath == NULL) return -EINVAL;
 
@@ -99,18 +99,9 @@ int soRename(const char *oldPath, const char *newPath) {
     strcpy(oldPathStrB, basename(oldPathStr));
     strcpy(newPathStr, newPath);
     strcpy(newPathStrB, basename(newPathStr));
-
-    char newPathStrD[MAX_PATH + 1];
     strcpy(newPathStrD, dirname(newPathStr));
 
     // END OF VALIDATIONS
-
-    /* Four operations:
-     * 1 - rename
-     * 2 - rename and remove directory 
-     * 3 - move
-     * 4 - rename and remove directory
-     */
 
     // Read function parameters and process them
 
@@ -120,91 +111,96 @@ int soRename(const char *oldPath, const char *newPath) {
     if ((stat = soReadInode(&oldPathinode, nInodeOld_ent, IUIN)) != 0)
         return stat;
 
+    // check if newPath path exists
     if ((stat = soGetDirEntryByPath(newPath, &nInodeNew_dir, &nInodeNew_ent)) != 0) {
         if (stat == -ENOENT) {
-            // NAO EXISTE
+            // it doesn't
 
-            // entao tenho que ler o directorio base para saber o inode -- tem que existir!
+            // read dirname of existing target, fill it's inode dir and inode entry
             if ((stat = soGetDirEntryByPath(newPathStrD, &nInodeNew_dir, &nInodeNew_ent)) != 0)
                 return stat;
 
             if ((stat = soReadInode(&newPathinode, nInodeNew_ent, IUIN)) != 0)
                 return stat;
 
-            // DIRECTORIOS IGUAIS E NAO EXISTE. É UM RENAME APENAS
+            // check if source and newPath  are at same inode dir
             if (nInodeOld_dir == nInodeNew_ent) {
-                // operation 1: renaming
+                // simple rename
                 if ((stat = soRenameDirEntry(nInodeOld_dir, oldPathStrB, newPathStrB)) != 0)
                     return stat;
 
                 return 0;
             } else {
-                // DESTINO NAO EXISTE E SAO DIRECTORIOS DIFERENTES
-                // É UM MOVE
+                // newPath doesn't exist and are at different inode dir
+                // moving operation
 
-                // nao é subdirectorio de si mesmo
                 // if (strcmp(oldPathStr, strncpy(newPathStr2, newPathStr, strlen(newPathStr) - strlen(basename(newPathStrB)))) == 0) return -EINVAL;
+                
                 // if (strstr(newPath, oldPath) != NULL) return -EINVAL; // can't move an directory to it self sub directory
                 // if (strlen(strstr(newPathStr,oldPathStr)) > 0) return -EINVAL;
-                
+
                 // char *c;
                 // c = strstr(oldPathStr,dirname(newPathStr));
                 // if(c != NULL) if(strlen(c) == 0) return -EINVAL;
 
                 if ((oldPathinode.mode & INODE_DIR) == INODE_DIR) {
-                    // MOVE DE UM DIRECTORIO COM OU SEM RENAME 
+                    // move a directory with or without rename operation
                     if ((stat = soAddAttDirEntry(nInodeNew_ent, newPathStrB, nInodeOld_ent, ATTACH)) != 0)
                         return stat;
 
                     if ((stat = soRemDetachDirEntry(nInodeOld_dir, oldPathStrB, DETACH)) != 0)
                         return stat;
-                    
+
                     return 0;
                 } else {
-                    // SE NAO É DIRECTORIO É FICHEIRO OU SYMLINK
+                    // if is not a directory it is a file or symlink
                     if ((stat = soAddAttDirEntry(nInodeNew_ent, newPathStrB, nInodeOld_ent, ADD)) != 0)
                         return stat;
 
                     if ((stat = soRemDetachDirEntry(nInodeOld_dir, oldPathStrB, REM)) != 0)
                         return stat;
-                    
+
                     return 0;
                 }
 
             }
         }
-    } else if (stat != 0) return stat;
+    } else if (stat != 0) return stat; // check for other errors
+    
+    // at this point newPath exists
 
     if ((stat = soReadInode(&newPathEinode, nInodeNew_ent, IUIN)) != 0)
         return stat;
 
     if ((newPathEinode.mode & INODE_DIR) == INODE_DIR) {
 
-        // tem que estar vazio
+        // newPath must be empty
         if ((stat = soCheckDirectoryEmptiness(nInodeNew_ent)) != 0)
             return stat;
 
-        // metemos o novo
+        // attach oldPath to newPath
         if ((stat = soAddAttDirEntry(nInodeNew_dir, newPathStrB, nInodeOld_ent, ATTACH)) != 0)
             return stat;
-        
-        // removemos o directorio antigo
+
+        // ...and detach only after successful operation of ATTACH
         if ((stat = soRemDetachDirEntry(nInodeNew_dir, newPathStrB, DETACH)) != 0)
             return stat;
-        
+
         return 0;
-        
+
     } else {
-        // mover por cima ficheiro ou symlink
+        // move and replace newPath file/symlink
         if ((stat = soRemDetachDirEntry(nInodeNew_dir, newPathStrB, REM)) != 0)
             return stat;
-
+        
+        // add new file/symlink
         if ((stat = soAddAttDirEntry(nInodeNew_dir, newPathStrB, nInodeOld_ent, ADD)) != 0)
             return stat;
 
+        // ...and remove only after operation of ADD
         if ((stat = soRemDetachDirEntry(nInodeOld_dir, oldPathStrB, REM)) != 0)
             return stat;
-        
+
         return 0;
     }
 
