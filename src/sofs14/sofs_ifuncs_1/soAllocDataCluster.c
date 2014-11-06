@@ -123,12 +123,7 @@ int soAllocDataCluster(uint32_t nInode, uint32_t *p_nClust) {
     //teste de consistencia ao proximo cluster a reservar
     if ((stat = soQCheckStatDC(p_sb, nClust, &clusterStat)) != 0)
         return stat;
-
-    p_sb->dZoneRetriev.cache[p_sb->dZoneRetriev.cacheIdx] = NULL_CLUSTER; //esse cluster já nao vai estar disponivel, por isso NULL_CLUSTER
-    p_sb->dZoneRetriev.cacheIdx += 1;
-    p_sb->dZoneFree -= 1;
-
-
+    
     //ir buscar o cluster nClust. nClust precisa de ser o numero fisico
     //relação entre numero fisico e numero logico
     //NFClt = dzone_start + NLClt * BLOCKS_PER_CLUSTER;
@@ -136,13 +131,18 @@ int soAllocDataCluster(uint32_t nInode, uint32_t *p_nClust) {
 
     if ((stat = soReadCacheCluster(NFClt, &cluster)) != 0)
         return stat;
-
+    
     // codigo deste if, vem do pdf "manipulacao do cluster de dados", slide 23
     // check if the data cluster is dirty
     if (cluster.stat != NULL_INODE) {
         if ((stat = soCleanDataCluster(cluster.stat, nClust)) != 0)
             return stat;
     }
+    
+
+    p_sb->dZoneRetriev.cache[p_sb->dZoneRetriev.cacheIdx] = NULL_CLUSTER; //esse cluster já nao vai estar disponivel, por isso NULL_CLUSTER
+    p_sb->dZoneRetriev.cacheIdx += 1;
+    p_sb->dZoneFree -= 1;
 
     cluster.prev = cluster.next = NULL_CLUSTER;
     cluster.stat = nInode;
