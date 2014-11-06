@@ -127,12 +127,12 @@ int soReadInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
   memcpy(p_inode, &pInode[offset], sizeof(SOInode));
 
   /*guardar tabela de nós I*/
-  if((stat = soStoreBlockInT()) != 0)
-      return stat;
+  //if((stat = soStoreBlockInT()) != 0)
+  //    return stat;
 
   /*guardar super bloco*/
-  if( (stat = soStoreSuperBlock()) != 0)
-      return stat;
+  //if( (stat = soStoreSuperBlock()) != 0)
+  //    return stat;
 
 
   return 0;
