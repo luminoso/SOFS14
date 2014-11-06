@@ -386,10 +386,16 @@ int soHandleSIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
             if (clusterref_pos == RPC) {
                 if ((stat = soStoreDirRefClust()) != 0)
                     return stat;
+                
+                if((stat =soFreeDataCluster(p_inode->i1))!=0)
+                    return stat;
+                
                 if ((stat = soCleanLogicalCluster(p_sb, nInode, p_inode->i1)) != 0)
                     return stat;
+                
                 p_inode->cluCount--;
                 p_inode->i1 = NULL_CLUSTER;
+                
                 return 0;
             }
             if ((stat = soStoreDirRefClust()) != 0)
