@@ -1,7 +1,7 @@
 /**
  *  \file soCleanDataCluster.c (implementation file)
  *
- *  \author Bruno Silva
+ *  \author Bruno Silva  68535
  */
 
 #include <stdio.h>
@@ -59,67 +59,125 @@ int soHandleFileCluster (uint32_t nInode, uint32_t clustInd, uint32_t op, uint32
 
 int soCleanDataCluster (uint32_t nInode, uint32_t nLClust)
 {
-  soColorProbe (415, "07;31", "soCleanDataCluster (%"PRIu32", %"PRIu32")\n", nInode, nLClust);
+    soColorProbe (415, "07;31", "soCleanDataCluster (%"PRIu32", %"PRIu32")\n", nInode, nLClust);
 
-  int stat, i; // stat = error stat of the function; i= auxiliary variable for iterations
-  SOSuperBlock *p_sb; // pointer to the super block
-  SOInode inode; // inode instance to clean the references
-  SODataClust *p_cluster;
-
-  // Load the super block
-  if((stat = soLoadSuperBlock()) != 0)
- 		return stat;
-
- 	//get pointer to the super block
-	p_sb = soGetSuperBlock();
+    int stat, i; // stat = error stat of the function; i= auxiliary variable for iterations
+    SOSuperBlock *p_sb; // pointer to the super block
+    SOInode inode; // inode instance to clean the references
+    uint32_t nFClust; // physical number of the cluster
+    SODataClust cluster, *p_clusterS, *p_clusterD;
 
 
-	//check if inode is in the allowed parameters
-  if(!(nInode > 0 && nInode < p_sb->iTotal))
-  	return -EINVAL;
+    // Load the super block
+    if((stat = soLoadSuperBlock()) != 0)
+    	return stat;
+
+    //get pointer to the super block
+    p_sb = soGetSuperBlock();
+
+    //check if inode is in the allowed parameters
+    if(!(nInode > 0 && nInode < p_sb->iTotal))
+    	return -EINVAL;
+
+    //check if nLClust is in allowed parameters
+    if (!(nLClust > 0 && nLClust < p_sb->dZoneTotal) != 0)
+    	return stat;
+
+    //read nInode data into inode
+    if((stat = soReadInode(&inode, nInode, FDIN)) != 0)
+    	return stat;
 
 
-  //check if nLClust is in allowed parameters
-  if (!(nLClust > 0 && nLClust < p_sb->dZoneTotal) != 0)
-  	return stat;
+    if(inode.cluCount < MAX_FILE_CLUSTERS){
+        for(i = 0; i < MAX_FILE_CLUSTERS; i++){
+            if(i < N_DIRECT){
+                if(inode.d[i] == nLClust){
+                    nFClust = p_sb->dZoneStart + inode.d[i] * BLOCKS_PER_CLUSTER; 
 
+                    if( (stat = soReadCacheCluster(nFClust, &cluster)) != 0)
+                        return stat;
 
-  //read nInode data into inode
-  if((stat = soReadInode(&inode, nInode, FDIN)) != 0)
-  	return stat;
+                    if(cluster.prev != NULL_CLUSTER)
+                        if((stat = soCleanDataCluster(nInode, cluster.prev)) != 0)
+                            return stat;
 
+                    if(cluster.next != NULL_CLUSTER)
+                        if((stat = soCleanDataCluster(nInode, cluster.next)) != 0)
+                            return stat;
 
-  //check consistency of inode
-  if((stat = soQCheckFDInode(p_sb, &inode)) != 0)
-  	return stat;
+                    if((stat = soHandleFileCluster(nInode, i, CLEAN, NULL)) != 0)
+                        return stat;
+                    return 0;
+                }
+            }
+            
+            else if(i < N_DIRECT + RPC){
+                if(inode.i1 != NULL_CLUSTER){
+                    if ((stat = soLoadDirRefClust(p_sb->dZoneStart + inode.i1 * BLOCKS_PER_CLUSTER)) != 0)
+                    return stat;
 
-  // if the inode cluCount is less than N_DIRECT there's only the direct reference array
-  if(inode.cluCount < N_DIRECT){
-  	
-  	//search through the direct reference array
-  	for(i = 0; i < inode.cluCount; i++){
+                    p_clusterS = soGetDirRefClust();
 
-  		//test if d[i] is the cluster we want
-  		if(inode.d[i] == nLClust){
+                    if(p_clusterS->info.ref[i-N_DIRECT] == nLClust){
 
-  			if((stat = soLoadDirRefClust(p_sb->dZoneStart + nLClust * BLOCKS_PER_CLUSTER)) != 0)
-  				return stat;
+                        nFClust = p_sb->dZoneStart + p_clusterS->info.ref[i-N_DIRECT] * BLOCKS_PER_CLUSTER; 
 
-  			p_cluster = soGetDirRefClust();
+                        if( (stat = soReadCacheCluster(nFClust, &cluster)) != 0)
+                            return stat;
 
-  			if(p_cluster->prev != NULL_CLUSTER)
-  				soCleanDataCluster(nInode, p_cluster->prev);
+                        if(cluster.prev != NULL_CLUSTER)
+                            if((stat = soCleanDataCluster(nInode, cluster.prev)) != 0)
+                                return stat;
 
-  			if(p_cluster->next != NULL_CLUSTER)
-  				soCleanDataCluster(nInode, p_cluster->next);
+                        if(cluster.next != NULL_CLUSTER)
+                            if((stat = soCleanDataCluster(nInode, cluster.next)) != 0)
+                                return stat;
 
-  			if((stat = soHandleFileCluster(nInode, i, CLEAN, NULL)) != 0)
-  				return stat;
-  		}
-  	}
-  }
+                        if((stat = soHandleFileCluster(nInode, i, CLEAN, NULL)) != 0)
+                            return stat;
+                        return 0;
+                    }
+                }
+            }
 
+            else if(i < N_DIRECT + RPC + (RPC * RPC)){
+                if(inode.i2 != NULL_CLUSTER){
+                    if ((stat = soLoadSngIndRefClust(p_sb->dZoneStart + inode.i2 * BLOCKS_PER_CLUSTER)) != 0)
+                        return stat;
 
+                    p_clusterS = soGetSngIndRefClust();
 
-  return 0;
+                    if(p_clusterS->info.ref[(i - N_DIRECT - RPC) / RPC] != NULL_CLUSTER){
+                        if ((stat = soLoadDirRefClust(p_sb->dZoneStart + p_clusterS->info.ref[(i - N_DIRECT - RPC) / RPC] * BLOCKS_PER_CLUSTER)) != 0)
+                            return stat;
+
+                        p_clusterD = soGetDirRefClust();
+
+                        if(p_clusterD->info.ref[(i - N_DIRECT - RPC) % RPC] == nLClust){
+
+                            nFClust = p_sb->dZoneStart + p_clusterD->info.ref[(i - N_DIRECT - RPC) % RPC] * BLOCKS_PER_CLUSTER; 
+
+                            if( (stat = soReadCacheCluster(nFClust, &cluster)) != 0)
+                                return stat;
+
+                            if(cluster.prev != NULL_CLUSTER)
+                                if((stat = soCleanDataCluster(nInode, cluster.prev)) != 0)
+                                    return stat;
+
+                            if(cluster.next != NULL_CLUSTER)
+                                if((stat = soCleanDataCluster(nInode, cluster.next)) != 0)
+                                    return stat;
+
+                            if((stat = soHandleFileCluster(nInode, i, CLEAN, NULL)) != 0)
+                                return stat;
+                            return 0;
+                        }
+                    }
+                }
+            }
+
+        }
+    }
+
+    return 0;
 }
