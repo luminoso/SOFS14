@@ -157,7 +157,7 @@ int soRename(const char *oldPath, const char *newPath) {
                     if ((stat = soAddAttDirEntry(nInodeNew_ent, newPathStrB, nInodeOld_ent, ADD)) != 0)
                         return stat;
 
-                    if ((stat = soRemDetachDirEntry(nInodeOld_dir, oldPathStrB, REM)) != 0)
+                    if ((stat = soRemDetachDirEntry(nInodeOld_dir, oldPathStrB, DETACH)) != 0)
                         return stat;
 
                     return 0;
@@ -198,7 +198,7 @@ int soRename(const char *oldPath, const char *newPath) {
             return stat;
 
         // ...and remove only after operation of ADD
-        if ((stat = soRemDetachDirEntry(nInodeOld_dir, oldPathStrB, REM)) != 0)
+        if ((stat = soRemDetachDirEntry(nInodeOld_dir, oldPathStrB, DETACH)) != 0)
             return stat;
 
         return 0;
