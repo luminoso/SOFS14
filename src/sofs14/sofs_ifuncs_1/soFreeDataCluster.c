@@ -219,8 +219,8 @@ int soDeplete(SOSuperBlock *p_sb) {
     p_sb->dZoneInsert.cacheIdx = 0;
 
     // save all super block changes
-    if ((stat = soStoreSuperBlock()) != 0)
-        return stat;
+    //if ((stat = soStoreSuperBlock()) != 0)
+    //    return stat;
     
     return 0;
 }

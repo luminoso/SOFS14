@@ -268,8 +268,8 @@ int soReplenish(SOSuperBlock *p_sb) {
         p_sb->dTail = NULL_CLUSTER;
 
 
-    if ((stat = soStoreSuperBlock()) != 0)
-        return stat;
+    //if ((stat = soStoreSuperBlock()) != 0)
+    //    return stat;
 
     return 0;
 }
