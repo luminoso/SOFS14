@@ -93,7 +93,8 @@ int soFreeDataCluster(uint32_t nClust) {
 
     // check if the insert cache is full. if it is, deplete it
     if (p_sb->dZoneInsert.cacheIdx == DZONE_CACHE_SIZE)
-        soDeplete(p_sb);
+        if((stat = soDeplete(p_sb)) != 0)
+            return stat;
 
     // load super block
     if ((stat = soLoadSuperBlock()) != 0)
