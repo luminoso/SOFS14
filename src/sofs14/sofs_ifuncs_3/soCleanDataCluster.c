@@ -76,7 +76,7 @@ int soCleanDataCluster (uint32_t nInode, uint32_t nLClust)
     p_sb = soGetSuperBlock();
 
     //check if inode is in the allowed parameters
-    if(!(nInode > 0 && nInode < p_sb->iTotal))
+    if(!(nInode > 1 && nInode < p_sb->iTotal))
     	return -EINVAL;
 
     //check if nLClust is in allowed parameters
