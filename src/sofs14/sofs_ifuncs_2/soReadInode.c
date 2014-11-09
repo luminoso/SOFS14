@@ -106,7 +106,6 @@ int soReadInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
       if((stat = soQCheckInodeIU(p_sb, &pInode[offset])) != 0)
           return stat;
 
-    //memcpy(p_inode, &pInode[offset], sizeof(SOInode));
      //update the access time to the current time
       pInode[offset].vD1.aTime = time(NULL); 
   }
@@ -117,12 +116,7 @@ int soReadInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
       if((stat = soQCheckFDInode(p_sb, &pInode[offset])) != 0)
           return stat;
 
-    //memcpy(p_inode, &pInode[offset], sizeof(SOInode));
   }  
-
-  	/* se lido correctamente vamos obter o ponteiro para ele*/
-  //p_itable = soGetBlockInT(); 
-  //p_inode = &p_itable[offset];
 
   memcpy(p_inode, &pInode[offset], sizeof(SOInode));
 
