@@ -65,7 +65,7 @@ int soCleanDataCluster (uint32_t nInode, uint32_t nLClust)
     SOSuperBlock *p_sb; // pointer to the super block
     SOInode inode; // inode instance to clean the references
     uint32_t clusterCount = 0; // physical number of the cluster
-    SODataClust *p_clusterS, *p_clusterD;
+    SODataClust *p_clusterS, *p_clusterD; // cluster pointers to direct and indirect references
 
     // Load the super block
     if((stat = soLoadSuperBlock()) != 0)
