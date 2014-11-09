@@ -70,7 +70,7 @@ int soRead (const char *ePath, void *buff, uint32_t count, int32_t pos)
 
   int stat; // variavel para o estado
   SOSuperBlock *p_sb; // ponteiro para o super bloco
-  SOInode *p_inode; // pointer to inode table for nBlk block position
+  SOInode p_inode; // pointer to inode table for nBlk block position
   uint32_t p_nInodeEnt; // ponteiro para a localizacao onde o nº do nó I associado à entrada é armazenado
   uint32_t offset; // numero do offset ()
   uint32_t p_clustInd; // ponteiro para indice do cluster
@@ -107,11 +107,11 @@ int soRead (const char *ePath, void *buff, uint32_t count, int32_t pos)
     return stat;
 
   /* Ler e verificar o inode (tem que ser um ficheiro regular) */
-  if( (stat = soReadInode(p_inode, p_nInodeEnt, IUIN)) != 0)
+  if( (stat = soReadInode(&p_inode, p_nInodeEnt, IUIN)) != 0)
   	return stat;
 
   /*verificar se ePath descreve um directorio*/
-  if( (stat = soQCheckDirCont(p_sb, p_inode)) != 0)
+  if( (stat = soQCheckDirCont(p_sb, &p_inode)) != 0)
     return -EISDIR;
 
   /*if any of the components of ePath, but the last one, is not a directory*/
@@ -128,15 +128,15 @@ int soRead (const char *ePath, void *buff, uint32_t count, int32_t pos)
 
   /*if the starting [byte] position in the file data continuum assumes a value passing its maximum size*/
   /*Verifica se o pos está fora do ficheiro*/
-  if(pos > p_inode->size)
+  if(pos > p_inode.size)
     return -EFBIG;
 
   /*------END OF VALIDATIONS-------*/
 
 
   /* Corrige o count se pos+count ultrapassar o limite do ficheiro */
-  if((pos + count) > p_inode->size)
-    count = p_inode->size - pos;
+  if((pos + count) > p_inode.size)
+    count = p_inode.size - pos;
 
   /* vai obter o clustInd e offset apartir do pos */
   if( (stat = soConvertBPIDC(pos, &p_clustInd, &offset)) != 0)
