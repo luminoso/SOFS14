@@ -76,9 +76,6 @@ int soAllocInode(uint32_t type, uint32_t* p_nInode) {
 
 
     /*verifica se o type é ilegal ou se o ponteiro para inode number é nulo*/
-    //if ((type & INODE_TYPE_MASK) == 0) //esta condicao nao verifica se é directorio E regular ao mesmo tempo numa situacao de erro
-     //   return -EINVAL;
-
     if(type != INODE_DIR && type != INODE_FILE && type != INODE_SYMLINK)
         return -EINVAL;
     
