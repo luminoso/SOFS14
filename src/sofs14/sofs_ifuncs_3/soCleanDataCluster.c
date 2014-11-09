@@ -61,12 +61,11 @@ int soCleanDataCluster (uint32_t nInode, uint32_t nLClust)
 {
     soColorProbe (415, "07;31", "soCleanDataCluster (%"PRIu32", %"PRIu32")\n", nInode, nLClust);
 
-    int stat, i; // stat = error stat of the function; i= auxiliary variable for iterations
+    int stat, i, j; // stat = error stat of the function; i= auxiliary variable for iterations
     SOSuperBlock *p_sb; // pointer to the super block
     SOInode inode; // inode instance to clean the references
-    uint32_t nFClust; // physical number of the cluster
-    SODataClust cluster, *p_clusterS, *p_clusterD;
-
+    uint32_t clusterCount = 0; // physical number of the cluster
+    SODataClust *p_clusterS, *p_clusterD;
 
     // Load the super block
     if((stat = soLoadSuperBlock()) != 0)
@@ -87,98 +86,140 @@ int soCleanDataCluster (uint32_t nInode, uint32_t nLClust)
     if((stat = soReadInode(&inode, nInode, FDIN)) != 0)
     	return stat;
 
-    //falta validação que testa o header do cluster
+    //Direct References   
+    for(i = 0; i < N_DIRECT; i++){
 
-    
-    for(i = 0; i < MAX_FILE_CLUSTERS; i++){
-        if(i < N_DIRECT){
+        if(inode.d[i] != NULL_CLUSTER){
             if(inode.d[i] == nLClust){
-                
+                //if cluster is in d[i] clean it
                 if((stat = soHandleFileCluster(nInode, i, CLEAN, NULL)) != 0)
                     return stat;
                 return 0;
             }
+            else
+                clusterCount++;
         }
-        
-        else if(i < N_DIRECT + RPC){
-            if(inode.i1 == nLClust){
-
-                nFClust = p_sb->dZoneStart + p_clusterS->info.ref[i-N_DIRECT] * BLOCKS_PER_CLUSTER; 
-
-                if((stat = soReadCacheCluster(nFClust, &cluster)) != 0)
-                    return stat;
-
-                if(cluster.stat != NULL_INODE){
-                    if((stat = soHandleFileCluster(nInode, i, CLEAN, NULL)) != 0)
-                        return stat;
-                }
-            }
-
-            if(inode.i1 != NULL_CLUSTER){
-                if ((stat = soLoadDirRefClust(p_sb->dZoneStart + inode.i1 * BLOCKS_PER_CLUSTER)) != 0)
-                return stat;
-
-                p_clusterS = soGetDirRefClust();
-
-                if(p_clusterS->info.ref[i-N_DIRECT] == nLClust){
-
-                    if((stat = soHandleFileCluster(nInode, i, CLEAN, NULL)) != 0)
-                        return stat;
-                    return 0;
-                }
-            }
-        }
-
-        else if(i < N_DIRECT + RPC + (RPC * RPC)){
-
-            if(inode.i2 == nLClust){
-                if ((stat = soLoadSngIndRefClust(p_sb->dZoneStart + inode.i2 * BLOCKS_PER_CLUSTER)) != 0)
-                    return stat;
-
-                p_clusterS = soGetSngIndRefClust();
-
-                if(p_clusterS->info.ref[(i - N_DIRECT - RPC) / RPC] != NULL_CLUSTER){
-                    if ((stat = soLoadDirRefClust(p_sb->dZoneStart + p_clusterS->info.ref[(i - N_DIRECT - RPC) / RPC] * BLOCKS_PER_CLUSTER)) != 0)
-                        return stat;
-
-                    p_clusterD = soGetDirRefClust();
-
-                    nFClust = p_sb->dZoneStart + p_clusterD->info.ref[(i - N_DIRECT - RPC) % RPC] * BLOCKS_PER_CLUSTER; 
-
-                    if( (stat = soReadCacheCluster(nFClust, &cluster)) != 0)
-                        return stat;
-
-                    if(cluster.stat != NULL_INODE){
-                        if((stat = soHandleFileCluster(nInode, i, CLEAN, NULL)) != 0)
-                            return stat;
-                    }
-                }
-            }
-
-            if(inode.i2 != NULL_CLUSTER){
-                if ((stat = soLoadSngIndRefClust(p_sb->dZoneStart + inode.i2 * BLOCKS_PER_CLUSTER)) != 0)
-                    return stat;
-
-                p_clusterS = soGetSngIndRefClust();
-
-                if(p_clusterS->info.ref[(i - N_DIRECT - RPC) / RPC] != NULL_CLUSTER){
-                    if ((stat = soLoadDirRefClust(p_sb->dZoneStart + p_clusterS->info.ref[(i - N_DIRECT - RPC) / RPC] * BLOCKS_PER_CLUSTER)) != 0)
-                        return stat;
-
-                    p_clusterD = soGetDirRefClust();
-
-                    if(p_clusterD->info.ref[(i - N_DIRECT - RPC) % RPC] == nLClust){
-
-                        if((stat = soHandleFileCluster(nInode, i, CLEAN, NULL)) != 0)
-                            return stat;
-                        return 0;
-                    }
-                }
-            }
-        }
-
+        //if we parsed all the clusters in the inode and it's not found
+        if(clusterCount == inode.cluCount)
+            return -EDCINVAL; 
     }
     
 
+    //Direct References Cluster
+    //if nLClust is i1
+    if(inode.i1 == nLClust){
+        if ((stat = soLoadDirRefClust(p_sb->dZoneStart + inode.i1 * BLOCKS_PER_CLUSTER)) != 0)
+            return stat;
+        p_clusterS = soGetDirRefClust();
+        //clean all references in i1
+        for(i = 0; i < RPC; i++){
+            if(p_clusterS->info.ref[i-N_DIRECT] != NULL_CLUSTER){
+                if((stat = soHandleFileCluster(nInode, i + N_DIRECT, CLEAN, NULL)) != 0)
+                    return stat;
+            }
+        }
+        return 0;
+    }
+    //if nLClust is not i1 it can be any of the RPC
+    else{
+        if((stat = soLoadDirRefClust(p_sb->dZoneStart + inode.i1 * BLOCKS_PER_CLUSTER)) != 0)
+            return stat;
+
+        p_clusterS = soGetDirRefClust();
+
+        for(i = 0; i < RPC; i++){
+            if(p_clusterS->info.ref[i] != NULL_CLUSTER){
+                //if nLCuster is found clean it
+                if(p_clusterS->info.ref[i] == nLClust){
+                    if((stat = soHandleFileCluster(nInode, i + N_DIRECT, CLEAN, NULL)) != 0)
+                        return stat;
+                    return 0;
+                }
+                else
+                    clusterCount++;
+            }
+            //if we parsed all the clusters in the inode and it's not found
+            if(clusterCount == inode.cluCount)
+                return -EDCINVAL;
+        }
+    }
+
+
+    //Referencias duplamente indirectas
+    //if nLClust is i2
+    if(inode.i2 == nLClust){
+        if ((stat = soLoadSngIndRefClust(p_sb->dZoneStart + inode.i2 * BLOCKS_PER_CLUSTER)) != 0)
+            return stat;
+
+        p_clusterS = soGetSngIndRefClust();
+        //clean all clusters in indirect and direct references
+        for(i = 0; i < RPC; i++){
+            if(p_clusterS->info.ref[i] != NULL_CLUSTER){
+                if ((stat = soLoadDirRefClust(p_sb->dZoneStart + p_clusterS->info.ref[i] * BLOCKS_PER_CLUSTER)) != 0)
+                    return stat;
+
+                p_clusterD = soGetDirRefClust();
+
+                for(j = 0; j < RPC; j++){
+                    if(p_clusterD->info.ref[j] != NULL_CLUSTER)
+                        if((stat = soHandleFileCluster(nInode, N_DIRECT + (RPC*(i+1)) + j, CLEAN, NULL)) != 0)
+                            return stat;
+                }  
+            }
+        }
+        return 0;
+    }
+    //if nLClust is not i2
+    else{
+        if ((stat = soLoadSngIndRefClust(p_sb->dZoneStart + inode.i2 * BLOCKS_PER_CLUSTER)) != 0)
+            return stat;
+
+        p_clusterS = soGetSngIndRefClust();
+        //parse i2 references
+        for(i = 0; i < RPC; i++){
+            if(p_clusterS->info.ref[i] != NULL_CLUSTER){
+
+                //if nLClust is in direct references
+                if(p_clusterS->info.ref[i] == nLClust){
+                    if ((stat = soLoadDirRefClust(p_sb->dZoneStart + p_clusterS->info.ref[i] * BLOCKS_PER_CLUSTER)) != 0)
+                        return stat;
+
+                    p_clusterD = soGetDirRefClust();
+                    //clean all indirect references for the direct reference entry
+                    for(j = 0; j < RPC; j++){
+                        if(p_clusterD->info.ref[j] != NULL_CLUSTER)
+                            if((stat = soHandleFileCluster(nInode, N_DIRECT + (RPC*(i+1)) + j, CLEAN, NULL)) != 0)
+                                return stat;
+                    } 
+                }
+                //if it's not in the direct references, let's look in all the indirect
+                else{
+                    if ((stat = soLoadDirRefClust(p_sb->dZoneStart + p_clusterS->info.ref[i] * BLOCKS_PER_CLUSTER)) != 0)
+                        return stat;
+
+                    p_clusterD = soGetDirRefClust();
+                    //search all the indirect references for each of the direct references
+                    for(j = 0; j < RPC; j++){
+                        if(p_clusterD->info.ref[j] != NULL_CLUSTER){
+                            //if nLCluster is found clean it
+                            if(p_clusterD->info.ref[j] == nLClust){
+                                if((stat = soHandleFileCluster(nInode, N_DIRECT + (RPC*(i+1)) + j, CLEAN, NULL)) != 0)
+                                    return stat;
+                                return 0;
+                            }
+                            else
+                                clusterCount++;
+                        }
+                        if(clusterCount == inode.cluCount)
+                            return -EDCINVAL;      
+                    }
+                    clusterCount++;
+                }
+                //if we parsed all the clusters in the inode and it's not found
+                if(clusterCount == inode.cluCount)
+                    return -EDCINVAL;
+            }
+        }
+    }
     return 0;
 }
