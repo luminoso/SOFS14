@@ -642,10 +642,6 @@ int soAttachLogicalCluster(SOSuperBlock *p_sb, uint32_t nInode, uint32_t clustIn
     int stat; // function return control
     uint32_t ind_prev, ind_next; // logical cluster number of adjacent clusters
     SODataClust dc, dc_prev, dc_next; // data clusters to be updated
-
-    if(nLClust==9){
-        printf("asneria");
-    }
     
 
     /* temos de verificar se o prev está bem ligado e se o next tambem esta bem ligado */

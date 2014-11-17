@@ -93,7 +93,7 @@ int soRenameDirEntry(uint32_t nInodeDir, const char *oldName, const char *newNam
     if ((inode.mode & INODE_TYPE_MASK) != INODE_DIR)
         return -ENOTDIR;
 
-    //verificar permiçoes
+    //verificar permissões
     if ((erro = soAccessGranted(nInodeDir, X)))
         return -EACCES;
 

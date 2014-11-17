@@ -1,5 +1,5 @@
 /**
- *  \file soAddAttDirEntry.c (implementation file)
+ *  \file soRemDetachDirEntry.c (implementation file)
  *
  *  \author Bruno Silva
  */
