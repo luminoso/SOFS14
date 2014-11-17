@@ -68,8 +68,8 @@ int soReadInode (SOInode *p_inode, uint32_t nInode, uint32_t status)
   p_sb = soGetSuperBlock(); /* ler super bloco */
 
 
-  if((stat = soQCheckSuperBlock(p_sb)) != 0) /* quick check of the superblock metadata */
-      return stat;
+  //if((stat = soQCheckSuperBlock(p_sb)) != 0) /* quick check of the superblock metadata */
+  //    return stat;
 
     /*If inode Table is consistency*/
   if((stat = soQCheckInT(p_sb)) != 0)

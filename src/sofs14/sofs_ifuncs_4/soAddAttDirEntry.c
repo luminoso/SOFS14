@@ -241,6 +241,7 @@ int soAddAttDirEntry(uint32_t nInodeDir, const char *eName, uint32_t nInodeEnt, 
             if ((stat = soReadFileCluster(nInodeEnt, 0, &dcEnt)) != 0)
                 return stat;
 
+            // set correct ".." inode
             dcEnt.info.de[1].nInode = nInodeDir;
 
             if ((stat = soWriteFileCluster(nInodeEnt, 0, &dcEnt)) != 0)

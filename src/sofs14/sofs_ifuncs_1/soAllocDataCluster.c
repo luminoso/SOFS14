@@ -76,8 +76,8 @@ int soAllocDataCluster(uint32_t nInode, uint32_t *p_nClust) {
 
     p_sb = soGetSuperBlock();
 
-    if ((stat = soQCheckSuperBlock(p_sb)) != 0)
-        return stat;
+    //if ((stat = soQCheckSuperBlock(p_sb)) != 0)
+    //    return stat;
 
     if ((stat = soQCheckDZ(p_sb)) != 0)
         return stat;
@@ -184,8 +184,8 @@ int soReplenish(SOSuperBlock *p_sb) {
         return -EBADF;
 
     //teste de consistencia ao super bloco
-    if ((stat = soQCheckSuperBlock(p_sb)) != 0)
-        return -ELIBBAD;
+    //if ((stat = soQCheckSuperBlock(p_sb)) != 0)
+    //    return -ELIBBAD;
 
     // numero de clusters a transmitir, caso nao haja menos clusters livres do que a cache apenas podemos transmitir esse numero
     nctt = (p_sb->dZoneFree < DZONE_CACHE_SIZE) ? p_sb->dZoneFree : DZONE_CACHE_SIZE;
