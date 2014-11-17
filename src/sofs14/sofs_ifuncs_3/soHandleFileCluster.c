@@ -620,7 +620,6 @@ int soHandleDIndirect(SOSuperBlock *p_sb, uint32_t nInode, SOInode *p_inode, uin
     }
     return 0;
 }
-
 /**
  *  \brief Attach a file data cluster whose index to the list of direct references and logical number are known.
  *
@@ -642,35 +641,64 @@ int soAttachLogicalCluster(SOSuperBlock *p_sb, uint32_t nInode, uint32_t clustIn
 
     int stat; // function return control
     uint32_t ind_prev, ind_next; // logical cluster number of adjacent clusters
-    SODataClust dc; // data cluster to be updated
+    SODataClust dc, dc_prev, dc_next; // data clusters to be updated
 
+    if(nLClust==9){
+        printf("asneria");
+    }
+    
+
+    /* temos de verificar se o prev está bem ligado e se o next tambem esta bem ligado */
     if (clustInd == 0) {
         ind_prev = NULL_CLUSTER;
     } else {
-        if ((stat = soHandleFileCluster(nInode, clustInd - 1, GET, &ind_prev)) != 0)
+        if ((stat = soHandleFileCluster(nInode, clustInd - 1, GET, &ind_prev)) != 0) {
             return 0;
+        }
+
+        if (ind_prev != NULL_CLUSTER) {
+            if ((stat = soReadCacheCluster(p_sb->dZoneStart + ind_prev * BLOCKS_PER_CLUSTER, &dc_prev)) != 0) {
+                return stat;
+            }
+        }
     }
 
     if (clustInd == MAX_FILE_CLUSTERS) {
         ind_next = NULL_CLUSTER;
     } else {
-        if ((stat = soHandleFileCluster(nInode, clustInd + 1, GET, &ind_next)) != 0)
+        if ((stat = soHandleFileCluster(nInode, clustInd + 1, GET, &ind_next)) !=0 ) {
             return 0;
+        }
+
+        if (ind_next != NULL_CLUSTER) {
+            if ((stat = soReadCacheCluster(p_sb->dZoneStart + ind_next * BLOCKS_PER_CLUSTER, &dc_next)) != 0) {
+                return stat;
+            }
+        }
     }
 
-    if ((ind_prev != NULL_CLUSTER) || (ind_next != NULL_CLUSTER)) {
-
-        if ((stat = soReadCacheCluster(p_sb->dZoneStart + nLClust * BLOCKS_PER_CLUSTER, &dc)) != 0)
+    if ((ind_prev != NULL_CLUSTER || ind_next != NULL_CLUSTER)) {
+        if ((stat = soReadCacheCluster(p_sb->dZoneStart + nLClust * BLOCKS_PER_CLUSTER, &dc)) != 0) {
             return stat;
-
-        if (ind_prev != NULL_CLUSTER) dc.prev = ind_prev;
-
-        if (ind_next != NULL_CLUSTER) dc.next = ind_next;
-
-        if ((stat = soWriteCacheCluster(p_sb->dZoneStart + nLClust * BLOCKS_PER_CLUSTER, &dc)) != 0)
+        }
+        if (ind_prev != NULL_CLUSTER) {
+            dc.prev = ind_prev;
+            dc_prev.next = nLClust;
+            if ((stat = soWriteCacheCluster(p_sb->dZoneStart + ind_prev * BLOCKS_PER_CLUSTER, &dc_prev)) != 0) {
+                return stat;
+            }
+        }
+        if (ind_next != NULL_CLUSTER) {
+            dc.next = ind_next;
+            dc_next.prev = nLClust;
+            if ((stat = soWriteCacheCluster(p_sb->dZoneStart + ind_next * BLOCKS_PER_CLUSTER, &dc_next)) !=0 ) {
+                return stat;
+            }
+        }
+        if ((stat = soWriteCacheCluster(p_sb->dZoneStart + nLClust * BLOCKS_PER_CLUSTER, &dc)) != 0) {
             return stat;
+        }
     }
-
     return 0;
 }
 
